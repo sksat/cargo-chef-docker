@@ -46,11 +46,11 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build and Push
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v2.7.1
       with:
         context: .
         push: ${{ github.ref == join('refs/heads/', github.event.repository.default_branch) }}
-        build_args: BASE_IMG=${{ matrix.base_img }}
+        build-args: BASE_IMG=${{ matrix.base_img }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
