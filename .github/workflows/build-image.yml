@@ -64,7 +64,10 @@ jobs:
     - name: Set Tag
       id: tag
       run: |
-        TAGS=${{ steps.meta.outputs.tags }}
+        TAGS=$(cat <<EOF
+        ${{ steps.meta.outputs.tags }}
+        EOF
+        )
         echo ${TAGS}
 
     - name: Build and Push
