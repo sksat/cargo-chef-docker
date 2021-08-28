@@ -11,7 +11,11 @@ on:
       - '.github/workflows/build-image.yml'
 
 jobs:
-  build:
+  build_and_push:
+    name: Build and Push
+    strategy:
+      matrix:
+        base_img: [buster, slim-buster, slim, bullseye, slim-bullseye, alpine]
     runs-on: ubuntu-latest
 
     steps:
@@ -46,6 +50,7 @@ jobs:
       with:
         context: .
         push: ${{ github.ref == join('refs/heads/', github.event.repository.default_branch) }}
+        build_args: BASE_IMG=${{ matrix.base_img }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
