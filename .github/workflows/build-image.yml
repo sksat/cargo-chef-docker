@@ -71,9 +71,9 @@ jobs:
         echo "tags from meta: ${TAGS_META}"
         TAGS="${TAGS_META}"
         if ${{ github.ref == 'refs/heads/docker'}}; then
-          echo "default branch"
+          echo "add remove default branch version tags"
           for t in ${TAGS_META}; do
-            TAGS="${TAGS} $(echo $t | sed 's/docker-//')"
+            TAGS="${TAGS} $(echo $t | sed 's/${{ github.event.repository.default_branch }}-//')"
           done
         fi
         echo "tags: ${TAGS}"
