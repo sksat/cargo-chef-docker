@@ -14,13 +14,18 @@ jobs:
   rust_version:
     runs-on: ubuntu-latest
 
+    outputs:
+      rust_version: ${{ steps.rust_ver.output.rust_version }}
+
     steps:
     - uses: actions/checkout@v2
-    - name: get rust version
+    - name: Get Rust version
+      id: rust_ver
       run: echo ::set-output name=rust_version::$(cat rust-toolchain)
 
   build_and_push:
     name: Build and Push
+    needs: rust_version
     strategy:
       matrix:
         base_img: [buster, slim-buster, slim, bullseye, slim-bullseye, alpine]
