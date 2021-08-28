@@ -64,16 +64,26 @@ jobs:
     - name: Set Tag
       id: tag
       run: |
-        TAGS=$(cat <<EOF
+        TAGS_META=$(cat <<EOF
         ${{ steps.meta.outputs.tags }}
         EOF
         )
-        echo ${TAGS}
+        echo "tags from meta: ${TAGS_META}"
+        TAGS=""
         if ${{ github.ref == join('refs/heads/', github.event.repository.default_branch) }}; then
           echo "default branch"
-        else
-          echo "not default branch"
+          for t in ${TAGS_META}; do
+            TAGS="${TAGS} $t"
+            TAGS="${TAGS} $(echo $t | sed 's/docker-//')"
+          done
         fi
+
+        TAGS="${TAGS//'%'/'%25'}"
+        TAGS="${TAGS//$'\n'/'%0A'}"
+        TAGS="${TAGS//$'\r'/'%0D'}"
+        echo "tags: ${TAGS}"
+
+        echo "::set-output name=tags::${TAGS}"
 
     - name: Build and Push
       uses: docker/build-push-action@v2.7.0
@@ -82,7 +92,7 @@ jobs:
         load: true
         push: ${{ github.ref == join('refs/heads/', github.event.repository.default_branch) }}
         build-args: BASE_IMG=rust:${{ matrix.base_img }}
-        tags: ${{ steps.meta.outputs.tags }}
+        tags: ${{ steps.tags.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
