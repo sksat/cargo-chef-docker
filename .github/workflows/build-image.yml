@@ -41,7 +41,7 @@ jobs:
         images: ghcr.io/${{ github.repository }},sksat/${{ github.event.repository.name }}
         flavor: |
           latest=auto
-          suffix=${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}-
+          suffix=-${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}
 
     - name: Set up Buildx
       uses: docker/setup-buildx-action@v1
