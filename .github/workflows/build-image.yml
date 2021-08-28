@@ -61,6 +61,12 @@ jobs:
         username: sksat
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Set Tag
+      id: tag
+      run: |
+        TAGS=${{ steps.meta.outputs.tags }}
+        echo ${TAGS}
+
     - name: Build and Push
       uses: docker/build-push-action@v2.7.0
       with:
