@@ -73,11 +73,10 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: push no 'default_branch-' tag
-      if: ${{ github.ref == join('refs/heads/', github.event.repository.default_branch) }}
       run: |
         RUST_VER=${{ needs.rust_version.outputs.rust_version }}
         BASE_IMG=${{ matrix.base_img }}
-        BRANCH=${{ github.event.repository.default_branch }}
+        BRANCH=docker
 
         NO_BRANCH=${RUST_VER}-${BASE_IMG}
         docker tag ${{ github.repository }}:${NO_BRANCH}-${BRANCH} ${{ github.repository }}:${NO_BRANCH}
