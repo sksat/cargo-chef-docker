@@ -79,5 +79,5 @@ jobs:
         BRANCH=docker
 
         NO_BRANCH=${RUST_VER}-${BASE_IMG}
-        docker tag ${{ github.repository }}:${BRANCH}-${NO_BRANCH} ${{ github.repository }}:${NO_BRANCH}
-        docker push ${{ github.repository }}:${NO_BRANCH}
+        docker tag ghcr.io/${{ github.repository }}:${BRANCH}-${NO_BRANCH} ${{ github.repository }}:${NO_BRANCH}
+        docker push ghcr.io/${{ github.repository }}:${NO_BRANCH}
