@@ -77,12 +77,11 @@ jobs:
             TAGS="${TAGS} $(echo $t | sed 's/docker-//')"
           done
         fi
+        echo "tags: ${TAGS}"
 
         TAGS="${TAGS//'%'/'%25'}"
         TAGS="${TAGS//$'\n'/'%0A'}"
         TAGS="${TAGS//$'\r'/'%0D'}"
-        echo "tags: ${TAGS}"
-
         echo "::set-output name=tags::${TAGS}"
 
     - name: Build and Push
