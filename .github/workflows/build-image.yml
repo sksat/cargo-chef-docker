@@ -11,6 +11,14 @@ on:
       - '.github/workflows/build-image.yml'
 
 jobs:
+  rust_version:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: get rust version
+      run: echo ::set-output name=rust_version::$(cat rust-toolchain)
+
   build_and_push:
     name: Build and Push
     strategy:
