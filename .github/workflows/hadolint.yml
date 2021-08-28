@@ -17,4 +17,5 @@ jobs:
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review
+          hadolint_ignore: DL3006 DL4006
 
