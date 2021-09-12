@@ -94,5 +94,5 @@ jobs:
         build-args: BASE_IMG=rust:${{ matrix.base_img }}
         tags: ${{ steps.tags.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=${{ matrix.base_img }}
+        cache-to: type=gha,scope=${{ matrix.base_img }},mode=max
