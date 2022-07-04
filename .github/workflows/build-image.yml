@@ -43,7 +43,9 @@ jobs:
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository }},sksat/${{ github.event.repository.name }}
+        images: |
+          ghcr.io/${{ github.repository }},enable=true
+          sksat/${{ github.event.repository.name }},enable=true
         flavor: |
           latest=auto
           prefix=${{ needs.rust_version.outputs.rust_version }},onlatest=false
