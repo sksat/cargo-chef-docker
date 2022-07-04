@@ -96,6 +96,7 @@ jobs:
       with:
         targets: ${{ matrix.base_img }}
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        tags: ${{ steps.tags.outputs.tags }}
         set: |
           *.cache-from=type=gha,scope=${{ matrix.base_img }}
           *.cache-to=type=gha,mode=max,scope=${{ matrix.base_img }}
