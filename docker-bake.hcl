@@ -25,9 +25,17 @@ group "default" {
   ]
 }
 
+variable "DOCKER_META_VERSION" {
+  default = "latest"
+}
+variable "DOCKER_BASE_TAG" {
+  default = "latest"
+}
+
 target "base" {
   context = "./"
   dockerfile = "./Dockerfile"
+  tags = ["sksat/cargo-chef-docker:${DOCKER_BASE_TAG}-${DOCKER_META_VERSION}"]
 }
 
 target "slim" {
