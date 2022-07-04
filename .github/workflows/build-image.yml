@@ -88,13 +88,14 @@ jobs:
         TAGS="${TAGS//$'\r'/'%0D'}"
         echo "::set-output name=tags::${TAGS}"
 
-    - name: Build and Push
-      uses: docker/build-push-action@v3.0.0
+    - name: Bake and Push
+      uses: docker/bake-action@v2
       with:
-        context: .
+        targets: ${{ matrix.base_img }}
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-        build-args: BASE_TAG=${{ matrix.base_img }}
-        tags: ${{ steps.tags.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha,scope=${{ matrix.base_img }}
-        cache-to: type=gha,scope=${{ matrix.base_img }},mode=max
+        set: |
+          *.cache-from=type=gha,scope=${{ matrix.base_img }}
+          *.cache-to=type=gha,mode=max,scope=${{ matrix.base_img }}
+        files: |
+            ./docker-bake.hcl
+            ${{ steps.meta.outputs.bake-file }}
