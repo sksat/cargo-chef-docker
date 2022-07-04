@@ -1,5 +1,8 @@
 // docker-bake.hcl
-target "docker-metadata-action" {}
+target "docker-metadata-action" {
+  # default image/tag config(for local build)
+  tags = ["sksat/cargo-chef-docker:${DOCKER_BASE_TAG}-${DOCKER_META_VERSION}"]
+}
 
 target "build" {
   inherits = ["docker-metadata-action"]
