@@ -93,7 +93,7 @@ jobs:
       with:
         context: .
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-        build-args: BASE_IMG=rust:${{ matrix.base_img }}
+        build-args: BASE_TAG=${{ matrix.base_img }}
         tags: ${{ steps.tags.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha,scope=${{ matrix.base_img }}
