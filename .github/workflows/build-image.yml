@@ -48,8 +48,7 @@ jobs:
           sksat/${{ github.event.repository.name }},enable=true
         flavor: |
           latest=auto
-          prefix=${{ needs.rust_version.outputs.rust_version }},onlatest=false
-          suffix=-${{ matrix.base_img }},onlatest=true
+          suffix=-${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }},onlatest=true
         tags: |
           type=sha
           type=ref,event=pr
