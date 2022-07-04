@@ -33,9 +33,9 @@ variable "DOCKER_BASE_TAG" {
 }
 
 target "base" {
+  inherits = ["docker-metadata-action"]
   context = "./"
   dockerfile = "./Dockerfile"
-  tags = ["sksat/cargo-chef-docker:${DOCKER_BASE_TAG}-${DOCKER_META_VERSION}"]
 }
 
 target "slim" {
