@@ -60,5 +60,6 @@ target "slim-bullseye" {
 }
 target "alpine" {
   inherits = ["base"]
+  dockerfile = "./Dockerfile.alpine"
   args = { BASE_TAG = "alpine" }
 }
