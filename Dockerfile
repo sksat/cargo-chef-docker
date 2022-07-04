@@ -1,5 +1,6 @@
-ARG BASE_IMG=rust:latest # default image
-FROM ${BASE_IMG}
+ARG BASE_IMG=rust   # default image
+ARG BASE_TAG=latest # default tag
+FROM ${BASE_IMG}:${BASE_TAG}
 
 LABEL maintainer "sksat <sksat@sksat.net>"
 
