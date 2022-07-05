@@ -35,8 +35,18 @@ variable "DOCKER_BASE_TAG" {
   default = "latest"
 }
 
+target "multiarch-base" {
+  platforms = [
+    "linux/amd64",
+    "linux/arm64",
+    #"linux/arm/v6",
+    #"linux/arm/v7",
+    #"linux/386",
+  ]
+}
+
 target "base" {
-  inherits = ["docker-metadata-action"]
+  inherits = ["docker-metadata-action", "multiarch-base"]
   context = "./"
   dockerfile = "./Dockerfile"
 }
