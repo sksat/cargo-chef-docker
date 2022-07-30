@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eux
 
 function download_crate() {
 	CRATE="$1"
@@ -25,4 +26,4 @@ function install_without_install() {
 	rm -rf "${CRATE}-${VERSION}"
 }
 
-install_without_install "$1" "$2"
+install_without_install "$1" "${2#v}"
