@@ -5,7 +5,10 @@ FROM ${BASE_IMG}:${BASE_TAG}
 LABEL maintainer "sksat <sksat@sksat.net>"
 
 # depName=LukeMathWalker/cargo-chef datasource=github-releases
-ARG CARGO_CHEF_VERSION="v0.1.38"
+ARG CARGO_CHEF_VERSION="v0.1.37"
 
-RUN cargo install --version "${CARGO_CHEF_VERSION#v}" --locked cargo-chef \
-  && rm -rf "${CARGO_HOME}"/registry/
+RUN apt-get update && apt-get install --no-install-recommends -y curl \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+COPY cargo_install.sh /usr/local/bin/
+RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
