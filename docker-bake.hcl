@@ -48,7 +48,7 @@ target "multiarch-base" {
 target "base" {
   inherits = ["docker-metadata-action", "multiarch-base"]
   context = "./"
-  dockerfile = "./Dockerfile.binfmt"
+  dockerfile = "./Dockerfile"
 }
 
 target "slim" {
