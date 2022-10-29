@@ -14,6 +14,7 @@ build:
     && rm -rf /var/lib/apt/lists/*
   COPY cargo_install.sh ${CARGO_HOME}/bin/
   RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
+  SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
 
 build-arm64:
   RUN apt-get update && apt-get install --no-install-recommends -y curl g++-aarch64-linux-gnu libc6-dev-arm64-cross \
