@@ -98,4 +98,4 @@ jobs:
 
     - name: Check image
       run: |
-        docker run -it --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
+        docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
