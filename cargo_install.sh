@@ -18,7 +18,7 @@ function install_without_install() {
 	CRATE="$1"
 	VERSION="$2"
 	BUILD_OPT="--release --locked"
-	if [ -n "$3" ]; then
+	if [ $# -ge 3 ] && [ -n "$3" ]; then
 		BUILD_OPT="${BUILD_OPT} --target=$3"
 	fi
 
