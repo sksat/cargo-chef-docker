@@ -16,7 +16,7 @@ function download_crate() {
 # install crate without cargo install
 function install_without_install() {
 	CRATE="$1"
-	VERSION="$2"
+	VERSION="${2#v}"
 	BUILD_OPT="--release --locked"
 	if [ $# -ge 3 ] && [ -n "$3" ]; then
 		BUILD_OPT="${BUILD_OPT} --target=$3"
@@ -30,4 +30,4 @@ function install_without_install() {
 	rm -rf "${CRATE}-${VERSION}"
 }
 
-install_without_install "$1" "${2#v}" $3
+install_without_install $@
