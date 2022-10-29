@@ -5,7 +5,7 @@ FROM ${BASE_IMG}:${BASE_TAG}
 LABEL maintainer "sksat <sksat@sksat.net>"
 
 # depName=LukeMathWalker/cargo-chef datasource=github-releases
-ARG CARGO_CHEF_VERSION="v0.1.39"
+ARG CARGO_CHEF_VERSION="v0.1.46"
 
 RUN apt-get update && apt-get install --no-install-recommends -y curl \
   && apt-get clean \
