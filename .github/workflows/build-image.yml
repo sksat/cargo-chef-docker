@@ -95,3 +95,7 @@ jobs:
       run: |
         earthly --push +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
         docker image ls
+
+    - name: Check image
+      run: |
+        docker run -it --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
