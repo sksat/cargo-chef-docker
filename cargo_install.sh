@@ -17,10 +17,14 @@ function download_crate() {
 function install_without_install() {
 	CRATE="$1"
 	VERSION="$2"
+	BUILD_OPT="--release --locked"
+	if [ $# -ge 3 ] && [ -n "$3" ]; then
+		BUILD_OPT="${BUILD_OPT} --target=$3"
+	fi
 
 	download_crate "$CRATE" "$VERSION"
 	cd "${CRATE}-${VERSION}" || exit 1
-	cargo build --release --locked
+	cargo build ${BUILD_OPT}
 	cp "target/release/${CRATE}" "$CARGO_HOME/bin"
 	cd .. || exit 1
 	rm -rf "${CRATE}-${VERSION}"
