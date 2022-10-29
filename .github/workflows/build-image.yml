@@ -91,7 +91,7 @@ jobs:
         TAGS="${TAGS//$'\r'/'%0D'}"
         echo "::set-output name=tags::${TAGS}"
 
-    - name: Build container image
+    - name: Build & Push container image
       run: |
-        earthly +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
+        earthly --push +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
         docker image ls
