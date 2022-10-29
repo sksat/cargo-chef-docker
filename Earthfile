@@ -20,4 +20,5 @@ build-arm64:
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
   COPY cargo_install.sh /usr/local/bin/
+  RUN rustup target add aarch64-unknown-linux-gnu
   RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION} aarch64-unknown-linux-gnu
