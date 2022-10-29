@@ -13,3 +13,11 @@ build:
     && rm -rf /var/lib/apt/lists/*
   COPY cargo_install.sh /usr/local/bin/
   RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
+
+build-arm64:
+  FROM ${BASE_IMG}:${BASE_TAG}
+  RUN apt-get update && apt-get install --no-install-recommends -y curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+  COPY cargo_install.sh /usr/local/bin/
+  RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION} aarch64-unknown-linux-gnu
