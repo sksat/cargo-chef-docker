@@ -27,9 +27,11 @@ build-arm64:
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
 
 docker:
+  BUILD +build
   COPY +build/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
 
 docker-arm64:
+  BUILD +build-arm64
   COPY +build-arm64/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
