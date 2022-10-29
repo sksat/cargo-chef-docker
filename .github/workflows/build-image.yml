@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        base_img: [buster, slim-buster, slim, bullseye, slim-bullseye, alpine]
+        base_img: [buster, slim-buster, slim, bullseye, slim-bullseye]
     runs-on: ubuntu-latest
 
     steps:
