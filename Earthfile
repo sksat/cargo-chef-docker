@@ -16,9 +16,11 @@ build:
 
 build-arm64:
   FROM ${BASE_IMG}:${BASE_TAG}
-  RUN apt-get update && apt-get install --no-install-recommends -y curl \
+  RUN apt-get update && apt-get install --no-install-recommends -y curl g++-aarch64-linux-gnu libc6-dev-arm64-cross \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
   COPY cargo_install.sh /usr/local/bin/
   RUN rustup target add aarch64-unknown-linux-gnu
-  RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION} aarch64-unknown-linux-gnu
+  ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+  RUN cargo install cargo-chef --version ${CARGO_CHEF_VERSION#v} --locked
+  RUN file ${CARGO_HOME}/bin/cargo-chef
