@@ -30,4 +30,4 @@ function install_without_install() {
 	rm -rf "${CRATE}-${VERSION}"
 }
 
-install_without_install "$1" "${2#v}"
+install_without_install "$1" "${2#v}" $3
