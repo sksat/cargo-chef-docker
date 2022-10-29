@@ -18,6 +18,9 @@ function install_without_install() {
 	CRATE="$1"
 	VERSION="$2"
 	BUILD_OPT="--release --locked"
+	if [ -n "$3" ]; then
+		BUILD_OPT="${BUILD_OPT} --target=$3"
+	fi
 
 	download_crate "$CRATE" "$VERSION"
 	cd "${CRATE}-${VERSION}" || exit 1
