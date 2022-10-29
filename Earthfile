@@ -3,6 +3,8 @@ VERSION 0.6
 ARG BASE_IMG=rust   # default image
 ARG BASE_TAG=latest # default tag
 
+# DOCKER_META_VERSION should not be here for cache
+
 FROM ${BASE_IMG}:${BASE_TAG}
 
 # depName=LukeMathWalker/cargo-chef datasource=github-releases
@@ -28,9 +30,11 @@ build-arm64:
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
 
 docker:
+  ARG DOCKER_META_VERSION
   COPY +build/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
 
 docker-arm64:
+  ARG DOCKER_META_VERSION
   COPY +build-arm64/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
