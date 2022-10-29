@@ -12,7 +12,7 @@ build:
   RUN apt-get update && apt-get install --no-install-recommends -y curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-  COPY cargo_install.sh /usr/local/bin/
+  COPY cargo_install.sh ${CARGO_HOME}/bin/
   RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
 
 build-arm64:
