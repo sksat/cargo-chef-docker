@@ -93,7 +93,7 @@ jobs:
 
     - name: Build & Push container image
       run: |
-        earthly --ci --push \
+        earthly --use-inline-cache --save-inline-cache --push \
           +docker \
           --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 
