@@ -93,7 +93,7 @@ jobs:
 
     - name: Build & Push container image
       run: |
-        earthly --push \
+        earthly --ci --push \
           --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }} \
           +docker
 
