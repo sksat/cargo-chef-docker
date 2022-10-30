@@ -94,8 +94,8 @@ jobs:
     - name: Build & Push container image
       run: |
         earthly --ci --push \
-          --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }} \
-          +docker
+          +docker \
+          --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 
     - name: Set docker tag alias
       uses: ./.github/actions/action-docker-alias
