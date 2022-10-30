@@ -7,6 +7,10 @@ inputs:
   image:
     description: 'original docker container image'
     required: true
+  push:
+    description: 'push flag'
+    required: true
+    default: false
   tags:
     description: 'alias tags'
   tags_json:
@@ -23,6 +27,9 @@ runs:
       run: |
         for tag in `echo $TAGS`; do
           docker tag "$IMAGE" "$tag"
+          if ${{ inputs.push }}; then
+            docker push "$tag"
+          fi
         done
 
     - name: set alias from json
@@ -34,4 +41,7 @@ runs:
         TAGS=$(echo "$TAGS_JSON" | jq -r '.tags[]')
         for tag in `echo $TAGS`; do
           docker tag "$IMAGE" "$tag"
+          if ${{ inputs.push }}; then
+            docker push "$tag"
+          fi
         done
