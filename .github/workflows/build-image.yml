@@ -94,6 +94,7 @@ jobs:
     - name: Build & Push container image
       env:
         EARTHLY_PUSH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        EARTHLY_REMOTE_CACHE: ghcr.io/sksat/cargo-chef-docker:cache-${{ matrix.base_img }}
       run: |
         earthly \
           +docker \
