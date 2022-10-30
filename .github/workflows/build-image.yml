@@ -96,6 +96,12 @@ jobs:
         earthly --push +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
         docker image ls
 
+    - name: Set docker tag alias
+      uses: ./.github/actions/action-docker-alias
+      with:
+        image: ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }}
+        tags_json: ${{ steps.meta.outputs.json }}
+
     - name: Check image
       run: |
         docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
