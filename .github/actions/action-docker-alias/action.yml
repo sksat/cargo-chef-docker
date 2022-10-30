@@ -27,7 +27,7 @@ runs:
     - name: set alias from json
       shell: bash
       env:
-        TAGS: ${{ inputs.tags_json }}
+        TAGS_JSON: ${{ inputs.tags_json }}
       run: |
         TAGS=$(echo "$TAGS_JSON" | jq '.tags[]')
         for tag in `echo $TAGS`; do
