@@ -30,6 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         base_img: [buster, slim-buster, slim, bullseye, slim-bullseye]
+        arch: [amd64]
     runs-on: ubuntu-latest
 
     steps:
@@ -97,7 +98,8 @@ jobs:
         EARTHLY_REMOTE_CACHE: ghcr.io/sksat/cargo-chef-docker:cache-${{ matrix.base_img }}
       run: |
         earthly \
-          +docker \
+          --platform=linux/${{ matrix.arch }} \
+          +docker-${{ matrix.arch }} \
           --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 
     - name: Set docker tag alias
