@@ -10,7 +10,7 @@ FROM ${BASE_IMG}:${BASE_TAG}
 # depName=LukeMathWalker/cargo-chef datasource=github-releases
 ARG CARGO_CHEF_VERSION="v0.1.46"
 
-build:
+build-amd64:
   RUN apt-get update && apt-get install --no-install-recommends -y curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -31,12 +31,13 @@ build-arm64:
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
   SAVE IMAGE --cache-hint
 
-docker:
+docker-amd64:
   ARG DOCKER_META_VERSION
-  COPY +build/cargo-chef ${CARGO_HOME}/bin/
+  COPY +build-amd64/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
 
 docker-arm64:
+  FROM --platform=linux/arm64 ${BASE_IMG}:${BASE_TAG}
   ARG DOCKER_META_VERSION
   COPY +build-arm64/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
