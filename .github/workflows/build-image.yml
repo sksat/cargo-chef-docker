@@ -94,7 +94,6 @@ jobs:
     - name: Build & Push container image
       run: |
         earthly --push +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
-        docker image ls
 
     - name: Set docker tag alias
       uses: ./.github/actions/action-docker-alias
@@ -104,4 +103,5 @@ jobs:
 
     - name: Check image
       run: |
+        docker image ls
         docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
