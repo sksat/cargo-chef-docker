@@ -92,8 +92,10 @@ jobs:
         echo "::set-output name=tags::${TAGS}"
 
     - name: Build & Push container image
+      env:
+        EARTHLY_PUSH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       run: |
-        earthly --use-inline-cache --save-inline-cache --push \
+        earthly \
           +docker \
           --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 
