@@ -98,7 +98,6 @@ jobs:
         EARTHLY_REMOTE_CACHE: ghcr.io/sksat/cargo-chef-docker:cache-${{ matrix.base_img }}
       run: |
         earthly \
-          --platform=linux/${{ matrix.arch }} \
           +docker-${{ matrix.arch }} \
           --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 

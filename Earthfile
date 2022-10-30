@@ -37,6 +37,7 @@ docker-amd64:
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
 
 docker-arm64:
+  FROM --platform=linux/arm64 ${BASE_IMG}:${BASE_TAG}
   ARG DOCKER_META_VERSION
   COPY +build-arm64/cargo-chef ${CARGO_HOME}/bin/
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
