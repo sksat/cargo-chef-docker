@@ -14,7 +14,7 @@
       "datasourceTemplate": "github-releases"
     },
     {
-      "fileMatch": ["^Dockerfile$"],
+      "fileMatch": ["^Earthfile$"],
       "matchStrings": [
         "# depName=(?<depName>.*?) datasource=(?<datasource>.*)\nARG .*_VERSION=\"(?<currentValue>.*)\""
       ],

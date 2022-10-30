@@ -1,0 +1,37 @@
+name: 'action-docker-alias'
+description: 'GitHub Actions for set docker container image alias'
+
+author: '@sksat'
+
+inputs:
+  image:
+    description: 'original docker container image'
+    required: true
+  tags:
+    description: 'alias tags'
+  tags_json:
+    description: 'alias tags in docker/metadata-action json format'
+
+runs:
+  using: "composite"
+  steps:
+    - name: set alias
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        TAGS: ${{ inputs.tags }}
+      run: |
+        for tag in `echo $TAGS`; do
+          docker tag "$IMAGE" "$tag"
+        done
+
+    - name: set alias from json
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        TAGS_JSON: ${{ inputs.tags_json }}
+      run: |
+        TAGS=$(echo "$TAGS_JSON" | jq -r '.tags[]')
+        for tag in `echo $TAGS`; do
+          docker tag "$IMAGE" "$tag"
+        done
