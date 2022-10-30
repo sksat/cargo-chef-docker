@@ -111,4 +111,8 @@ jobs:
     - name: Check image
       run: |
         docker image ls
+
+    - name: Test image
+      if: ${{ matrix.arch == 'amd64' }}
+      run: |
         docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
