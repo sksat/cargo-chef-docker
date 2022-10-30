@@ -93,7 +93,9 @@ jobs:
 
     - name: Build & Push container image
       run: |
-        earthly --push +docker --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
+        earthly --use-inline-cache --save-inline-cache --push \
+          +docker \
+          --BASE_TAG=${{ matrix.base_img }} --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
 
     - name: Set docker tag alias
       uses: ./.github/actions/action-docker-alias

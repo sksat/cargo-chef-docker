@@ -17,6 +17,7 @@ build:
   COPY cargo_install.sh ${CARGO_HOME}/bin/
   RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
+  SAVE IMAGE --cache-hint
 
 build-arm64:
   RUN apt-get update && apt-get install --no-install-recommends -y curl g++-aarch64-linux-gnu libc6-dev-arm64-cross \
@@ -28,6 +29,7 @@ build-arm64:
   RUN cargo install cargo-chef --version ${CARGO_CHEF_VERSION#v} --locked
   #RUN file ${CARGO_HOME}/bin/cargo-chef
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
+  SAVE IMAGE --cache-hint
 
 docker:
   ARG DOCKER_META_VERSION
