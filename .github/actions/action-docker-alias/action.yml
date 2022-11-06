@@ -15,31 +15,47 @@ inputs:
     description: 'alias tags'
   tags_json:
     description: 'alias tags in docker/metadata-action json format'
+  tag_suffix:
+    description: 'common suffix of tags'
+    default: ''
 
 runs:
   using: "composite"
   steps:
     - name: set alias
+      if: inputs.tags != ''
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
         TAGS: ${{ inputs.tags }}
       run: |
-        for tag in `echo $TAGS`; do
-          docker tag "$IMAGE" "$tag"
-          if ${{ inputs.push }}; then
-            docker push "$tag"
-          fi
-        done
+        echo "$TAGS" > tags.lst
 
     - name: set alias from json
+      if: inputs.tags_json != ''
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
         TAGS_JSON: ${{ inputs.tags_json }}
       run: |
-        TAGS=$(echo "$TAGS_JSON" | jq -r '.tags[]')
-        for tag in `echo $TAGS`; do
+        echo "$TAGS_JSON" | jq -r '.tags[]' >> tags.lst
+
+    - name: set tag suffix
+      shell: bash
+      if: inputs.tag_suffix != ''
+      run: |
+        sed -z 's/\n/-'${{ inputs.tag_suffix }}'\n/g' -i tags.lst
+
+    - name: show tags
+      shell: bash
+      run: cat tags.lst
+
+    - name: set alias tags & push images
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        for tag in `cat tags.lst`; do
           docker tag "$IMAGE" "$tag"
           if ${{ inputs.push }}; then
             docker push "$tag"
