@@ -25,12 +25,7 @@ runs:
         IMAGE: ${{ inputs.image }}
         TAGS: ${{ inputs.tags }}
       run: |
-        for tag in `echo $TAGS`; do
-          docker tag "$IMAGE" "$tag"
-          if ${{ inputs.push }}; then
-            docker push "$tag"
-          fi
-        done
+        echo "$TAGS" > tags.lst
 
     - name: set alias from json
       shell: bash
@@ -38,8 +33,18 @@ runs:
         IMAGE: ${{ inputs.image }}
         TAGS_JSON: ${{ inputs.tags_json }}
       run: |
-        TAGS=$(echo "$TAGS_JSON" | jq -r '.tags[]')
-        for tag in `echo $TAGS`; do
+        echo "$TAGS_JSON" | jq -r '.tags[]' >> tags.lst
+
+    - name: show tags
+      shell: bash
+      run: cat tags.lst
+
+    - name: set alias tags & push images
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        for tag in `cat tags.lst`; do
           docker tag "$IMAGE" "$tag"
           if ${{ inputs.push }}; then
             docker push "$tag"
