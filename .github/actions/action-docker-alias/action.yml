@@ -23,6 +23,7 @@ runs:
   using: "composite"
   steps:
     - name: set alias
+      if: inputs.tags != ''
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
@@ -31,6 +32,7 @@ runs:
         echo "$TAGS" > tags.lst
 
     - name: set alias from json
+      if: inputs.tags_json != ''
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
