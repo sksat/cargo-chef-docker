@@ -15,6 +15,9 @@ inputs:
     description: 'alias tags'
   tags_json:
     description: 'alias tags in docker/metadata-action json format'
+  tag_suffix:
+    description: 'common suffix of tags'
+    default: ''
 
 runs:
   using: "composite"
@@ -34,6 +37,12 @@ runs:
         TAGS_JSON: ${{ inputs.tags_json }}
       run: |
         echo "$TAGS_JSON" | jq -r '.tags[]' >> tags.lst
+
+    - name: set tag suffix
+      shell: bash
+      if: inputs.tag_suffix != ''
+      run: |
+        sed -z 's/\n/-'${{ inputs.tag_suffix }}'\n/g' -i tags.lst
 
     - name: show tags
       shell: bash
