@@ -26,8 +26,8 @@ build-arm64:
   COPY cargo_install.sh /usr/local/bin/
   RUN rustup target add aarch64-unknown-linux-gnu
   ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-  RUN cargo install cargo-chef --version ${CARGO_CHEF_VERSION#v} --locked
-  #RUN file ${CARGO_HOME}/bin/cargo-chef
+  RUN cargo install cargo-chef --target=aarch64-unknown-linux-gnu --version ${CARGO_CHEF_VERSION#v} --locked
+  RUN file ${CARGO_HOME}/bin/cargo-chef
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
   SAVE IMAGE --cache-hint
 
@@ -40,4 +40,6 @@ docker-arm64:
   FROM --platform=linux/arm64 ${BASE_IMG}:${BASE_TAG}
   ARG DOCKER_META_VERSION
   COPY +build-arm64/cargo-chef ${CARGO_HOME}/bin/
+  #RUN file ${CARGO_HOME}/bin/cargo-chef
+  #RUN cargo chef --version
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
