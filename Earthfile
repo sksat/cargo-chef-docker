@@ -14,8 +14,7 @@ build-amd64:
   RUN apt-get update && apt-get install --no-install-recommends -y curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-  COPY cargo_install.sh ${CARGO_HOME}/bin/
-  RUN cargo_install.sh cargo-chef ${CARGO_CHEF_VERSION}
+  RUN cargo install cargo-chef --version ${CARGO_CHEF_VERSION#v} --locked
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
   SAVE IMAGE --cache-hint
 
