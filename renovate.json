@@ -4,8 +4,10 @@
   ],
   "additionalReviewers": ["sksat"],
   "packageRules": [
-    "matchUpdateTypes": ["patch"],
-    "automerge": true
+    {
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    }
   ],
   "regexManagers": [
     {
