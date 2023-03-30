@@ -3,6 +3,10 @@
     "config:base"
   ],
   "additionalReviewers": ["sksat"],
+  "packageRules": [
+    "matchUpdateTypes": ["patch"],
+    "automerge": true
+  ],
   "regexManagers": [
     {
       "fileMatch": ["^rust-toolchain(\\.toml)?$"],
