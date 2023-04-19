@@ -8,7 +8,7 @@ ARG BASE_TAG=latest # default tag
 FROM ${BASE_IMG}:${BASE_TAG}
 
 # depName=LukeMathWalker/cargo-chef datasource=github-releases
-ARG CARGO_CHEF_VERSION="v0.1.56"
+ARG CARGO_CHEF_VERSION="v0.1.57"
 
 build-amd64:
   RUN apt-get update && apt-get install --no-install-recommends -y curl \
