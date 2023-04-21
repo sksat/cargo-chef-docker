@@ -1,7 +1,10 @@
 VERSION 0.6
 
+# depName=rust datasource=docker
+ARG RUST_VERSION="1.68.2"
+
 ARG BASE_IMG=rust   # default image
-ARG BASE_TAG=latest # default tag
+ARG BASE_TAG=${RUST_VERSION} # default tag
 
 # DOCKER_META_VERSION should not be here for cache
 
