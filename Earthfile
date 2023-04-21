@@ -32,6 +32,17 @@ build-arm64:
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
   SAVE IMAGE --cache-hint
 
+build-riscv64gc:
+  RUN apt-get update && apt-get install --no-install-recommends -y curl g++-riscv64-linux-gnu libc6-dev-riscv64-cross \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+  RUN rustup target add riscv64gc-unknown-linux-gnu
+  ENV CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER=riscv64-linux-gnu-gcc
+  RUN cargo install cargo-chef --target=riscv64gc-unknown-linux-gnu --version ${CARGO_CHEF_VERSION#v} --locked
+  #RUN file ${CARGO_HOME}/bin/cargo-chef
+  SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
+  SAVE IMAGE --cache-hint
+
 docker-amd64:
   ARG DOCKER_META_VERSION
   COPY +build-amd64/cargo-chef ${CARGO_HOME}/bin/
