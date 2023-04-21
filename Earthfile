@@ -66,3 +66,9 @@ docker-arm64:
   #RUN file ${CARGO_HOME}/bin/cargo-chef
   #RUN cargo chef --version
   SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
+
+docker-i686:
+  FROM --platform=linux/386 ${BASE_IMG}:${BASE_TAG}
+  ARG DOCKER_META_VERSION
+  COPY +build-i686/cargo-chef ${CARGO_HOME}/bin/
+  SAVE IMAGE ghcr.io/sksat/cargo-chef-docker:${BASE_TAG}-${DOCKER_META_VERSION}
