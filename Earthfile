@@ -32,6 +32,17 @@ build-arm64:
   SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
   SAVE IMAGE --cache-hint
 
+build-i686:
+  RUN apt-get update && apt-get install --no-install-recommends -y curl g++-i686-linux-gnu libc6-dev-i386-cross \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+  RUN rustup target add i686-unknown-linux-gnu
+  ENV CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=i686-linux-gnu-gcc
+  RUN cargo install cargo-chef --target=i686-unknown-linux-gnu --version ${CARGO_CHEF_VERSION#v} --locked
+  #RUN file ${CARGO_HOME}/bin/cargo-chef
+  SAVE ARTIFACT ${CARGO_HOME}/bin/cargo-chef
+  SAVE IMAGE --cache-hint
+
 build-riscv64gc:
   RUN apt-get update && apt-get install --no-install-recommends -y curl g++-riscv64-linux-gnu libc6-dev-riscv64-cross \
     && apt-get clean \
