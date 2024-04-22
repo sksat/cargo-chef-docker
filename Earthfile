@@ -1,7 +1,7 @@
 VERSION 0.6
 
 # depName=rust datasource=docker
-ARG RUST_VERSION="1.76.0"
+ARG RUST_VERSION="1.77.2"
 
 ARG BASE_IMG=rust   # default image
 ARG BASE_TAG=${RUST_VERSION} # default tag
