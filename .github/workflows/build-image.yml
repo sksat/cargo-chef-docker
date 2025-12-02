@@ -16,7 +16,7 @@ jobs:
       rust_version: ${{ steps.rust_ver.outputs.rust_version }}
 
     steps:
-    - uses: actions/checkout@v5.0.1
+    - uses: actions/checkout@v6.0.1
     - name: Get Rust version
       id: rust_ver
       run: |
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5.0.1
+    - uses: actions/checkout@v6.0.1
 
     - name: Docker meta
       id: meta
