@@ -96,9 +96,9 @@ def main():
         base = next(r["facts"]["base"] for r in rows if r["facts"])
         out.append(
             "`base match` checks that the published layer list starts with the layers of the"
-            f" official `rust:<tag>` (e.g. `{base}`), and that the only additions are cargo-chef"
-            " (plus the linker for `-mold` and `-wild`). `official N + M` means the base image has"
-            " N layers and we add M on top."
+            f" official `rust:<tag>` (e.g. `{base}`), and that exactly one layer is added on"
+            " top. That single layer holds cargo-chef, and on `-mold` and `-wild` the linker as"
+            " well. `official N + M` means the base image has N layers and we add M on top."
         )
         out.append("")
         out.append(

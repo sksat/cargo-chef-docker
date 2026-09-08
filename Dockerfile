@@ -69,26 +69,38 @@ RUN set -eux; \
       "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz"; \
     # 展開は捨てるステージの /tmp だが、アーカイブ側の owner を持ち込まない
     tar xzf /tmp/wild.tar.gz --no-same-owner -C /tmp; \
-    # 最終イメージに置く形をそのまま /out に作り、COPY 1 回で済ませる
-    install -Dm755 "/tmp/${name}/wild" /out/usr/local/bin/wild; \
-    # clang の -fuse-ld=wild は ld.wild を探す
-    ln -s wild /out/usr/local/bin/ld.wild; \
-    # gcc の -B<dir> 用。apt の mold が /usr/libexec/mold/ld を置くのと同じ形。
-    # bookworm(gcc 12) と trixie(gcc 14) はどちらも -fuse-ld=wild を知らない
-    # （GCC 16.1 以降の機能）ので、この経路が既定の gcc で使える手になる
-    mkdir -p /out/usr/local/libexec/wild; \
-    ln -s ../../bin/wild /out/usr/local/libexec/wild/ld
+    install -Dm755 "/tmp/${name}/wild" /out/wild
+
+# variant は default の上に積まず、ベースから作って cargo-chef と linker を
+# 同じ RUN で置く。FROM default にすると公式イメージに対して 2 層になる。
+# mount 元は build ステージ側の CARGO_HOME で、置き先の CARGO_BIN とは別物。
+# ディレクトリごと COPY すると公式が CARGO_HOME に付けている a+w が 755 に
+# 戻るため、install -D でファイルだけ置く
 
 # -mold タグ用。mold を入れるだけで、cargo が使う設定は入れない
-FROM default AS mold
-RUN apt-get update \
-  && apt-get install --no-install-recommends -y mold \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+FROM ${BASE_IMG}:${BASE_TAG} AS mold
+ARG CARGO_BIN=/usr/local/cargo/bin
+RUN --mount=from=build,source=/usr/local/cargo/bin,target=/payload \
+    set -eux; \
+    install -Dm755 /payload/cargo-chef "${CARGO_BIN}/cargo-chef"; \
+    apt-get update; \
+    apt-get install --no-install-recommends -y mold; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # -wild タグ用。mold と同じく、置くだけで cargo の設定は入れない
-FROM default AS wild
-COPY --from=wild-dist /out/ /
+FROM ${BASE_IMG}:${BASE_TAG} AS wild
+ARG CARGO_BIN=/usr/local/cargo/bin
+RUN --mount=from=build,source=/usr/local/cargo/bin,target=/payload \
+    --mount=from=wild-dist,source=/out,target=/wild \
+    set -eux; \
+    install -Dm755 /payload/cargo-chef "${CARGO_BIN}/cargo-chef"; \
+    install -Dm755 /wild/wild /usr/local/bin/wild; \
+    # clang の -fuse-ld=wild は ld.wild を探す
+    ln -s wild /usr/local/bin/ld.wild; \
+    # gcc の -B<dir> 用。apt の mold が /usr/libexec/mold/ld を置くのと同じ形
+    install -d /usr/local/libexec/wild; \
+    ln -s ../../bin/wild /usr/local/libexec/wild/ld
 
 # 最後のステージが --target なしのビルド対象になる。
 # mold を末尾に置くと素の `docker build .` が mold 版になってしまうため、
