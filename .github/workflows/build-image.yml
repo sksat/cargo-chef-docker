@@ -8,6 +8,10 @@ on:
       - v*
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
 jobs:
   rust_version:
     runs-on: ubuntu-latest
