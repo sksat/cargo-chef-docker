@@ -30,12 +30,10 @@ jobs:
   build_and_push:
     name: Build and Push
     needs: rust_version
-    continue-on-error: ${{ matrix.arch == 'i686' }}
     strategy:
       fail-fast: false
       matrix:
         base_img: [slim, trixie, slim-trixie, bookworm, slim-bookworm]
-        arch: [amd64, arm64, i686]
     runs-on: ubuntu-latest
 
     steps:
@@ -57,14 +55,9 @@ jobs:
           type=ref,event=pr
           type=raw,value=${{ needs.rust_version.outputs.rust_version }},enable={{is_default_branch}}
 
-    - name: Set up Earthly
-      uses: earthly/actions-setup@v1.0.13
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Use mirror.gcr.io as a Docker Hub mirror
       run: |
-        # host の docker daemon 経由の pull（earthly/buildkitd, tonistiigi/binfmt）
+        # host の docker daemon 経由の pull（tonistiigi/binfmt, moby/buildkit）
         sudo mkdir -p /etc/docker
         tmp=$(mktemp)
         if [ -s /etc/docker/daemon.json ]; then
@@ -76,17 +69,16 @@ jobs:
         sudo systemctl restart docker
         docker info --format 'daemon registry mirrors: {{json .RegistryConfig.Mirrors}}'
 
-        # buildkitd 経由の pull（Earthfile の FROM が引く rust イメージ）
-        # `earthly config` は値を YAML として解釈するため TOML を渡せない。設定ファイルに直接書く
-        mkdir -p ~/.earthly
-        cat > ~/.earthly/config.yml <<'EOF'
-        global:
-          buildkit_additional_config: |
-            [registry."docker.io"]
-              mirrors = ["mirror.gcr.io"]
-        EOF
-        echo "--- ~/.earthly/config.yml"
-        cat ~/.earthly/config.yml
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v4.3.0
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4.3.0
+      with:
+        # buildkitd 経由の pull（Dockerfile の FROM が引く rust イメージ）
+        buildkitd-config-inline: |
+          [registry."docker.io"]
+            mirrors = ["mirror.gcr.io"]
 
     - name: Login to ghcr.io
       uses: docker/login-action@v4.6.0
@@ -104,88 +96,30 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build & Push container image
-      env:
-        EARTHLY_PUSH: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-        EARTHLY_REMOTE_CACHE: ghcr.io/sksat/cargo-chef-docker:cache-${{ matrix.base_img }}-${{ matrix.arch }}
-      run: |
-        earthly \
-          +docker-${{ matrix.arch }} \
-          --BASE_TAG="${{ needs.rust_version.outputs.rust_version  }}-${{ matrix.base_img }}" --DOCKER_META_VERSION=${{ steps.meta.outputs.version }}
-
-    - name: Set docker tag alias
-      uses: ./.github/actions/action-docker-alias
+      uses: docker/build-push-action@v7.3.0
       with:
+        context: .
+        platforms: linux/amd64,linux/arm64,linux/386
+        build-args: |
+          BASE_TAG=${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        annotations: ${{ steps.meta.outputs.annotations }}
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-        image: ghcr.io/sksat/cargo-chef-docker:${{ needs.rust_version.outputs.rust_version  }}-${{ matrix.base_img }}-${{ steps.meta.outputs.version }}
-        tags_json: ${{ steps.meta.outputs.json }}
-        tag_suffix: ${{ matrix.arch }}
-
-    - name: Check image
-      run: |
-        docker image ls
-
-    - name: Set up QEMU
-      if: ${{ matrix.arch == 'arm64' }}
-      uses: docker/setup-qemu-action@v4.3.0
-      with:
-        platforms: arm64
+        cache-from: type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-${{ matrix.base_img }}
+        cache-to: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-{0},mode=max', matrix.base_img) || '' }}
 
     - name: Test image
-      if: ${{ matrix.arch != 'i686' }}
       run: |
-        docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ needs.rust_version.outputs.rust_version  }}-${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
-
-  create_manifest:
-    name: Create Multi-arch Manifest
-    needs: [rust_version, build_and_push]
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        base_img: [slim, trixie, slim-trixie, bookworm, slim-bookworm]
-
-    steps:
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v5.8.0
-      with:
-        images: |
-          ghcr.io/${{ github.repository }},enable=true
-          sksat/${{ github.event.repository.name }},enable=true
-        flavor: |
-          latest=auto
-          suffix=-${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }},onlatest=false
-          suffix=-${{ matrix.base_img }},onlatest=true
-        tags: |
-          type=sha
-          type=raw,value=${{ needs.rust_version.outputs.rust_version }},enable={{is_default_branch}}
-
-    - name: Login to ghcr.io
-      uses: docker/login-action@v3.6.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Login to DockerHub
-      uses: docker/login-action@v3.6.0
-      with:
-        username: sksat
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4.3.0
-
-    - name: Create and push multi-arch manifests
-      run: |
-        TAGS=$(cat <<'EOF'
-        ${{ steps.meta.outputs.tags }}
-        EOF
-        )
-        for tag in ${TAGS}; do
-          echo "Creating manifest for ${tag}"
-          docker buildx imagetools create -t "${tag}" \
-            "${tag}-amd64" \
-            "${tag}-arm64"
+        # multi-platform ビルドは --load できないため、platform ごとに単一 platform で load する。
+        # 直前のビルドと同じ内容なので buildkit のローカルキャッシュにヒットする
+        for platform in linux/amd64 linux/arm64 linux/386; do
+          echo "::group::${platform}"
+          docker buildx build \
+            --platform "${platform}" \
+            --build-arg "BASE_TAG=${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}" \
+            --cache-from "type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-${{ matrix.base_img }}" \
+            --load -t "cargo-chef-test:${{ matrix.base_img }}" .
+          docker run --rm "cargo-chef-test:${{ matrix.base_img }}" cargo chef --version
+          echo "::endgroup::"
         done
