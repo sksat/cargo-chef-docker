@@ -11,6 +11,8 @@ on:
         type: string
 
 jobs:
+  # matrix は bake から 1 回で全部作る。呼ばれる側で作ると、バージョンごとに
+  # 同じことをする prepare が並ぶ（13 バージョンなら 13 件）
   prepare:
     runs-on: ubuntu-latest
 
@@ -18,19 +20,55 @@ jobs:
       contents: read
 
     outputs:
-      rust_versions: ${{ steps.versions.outputs.rust_versions }}
+      versions: ${{ steps.matrix.outputs.versions }}
+      targets: ${{ steps.matrix.outputs.targets }}
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    - name: Read the rust version list from docker-bake.hcl
-      id: versions
+    - name: Build the job matrix
+      id: matrix
       run: |
         # docker-bake.hcl を単一のソースにする。bake --print は daemon 不要で、
         # buildx は runner に同梱されている。
-        # rust-toolchain は rust のリリース記録として残しており、ここでは読まない
-        # （ビルドに使うのはイメージが存在するバージョンで、別物）
-        echo "rust_versions=$(docker buildx bake --print 2>/dev/null \
-          | jq -c '[.target[].args.RUST_VERSION] | unique')" >> "${GITHUB_OUTPUT}"
+        # rust のリリース記録は docker-bake.hcl の RUST_LATEST_RELEASE 側にあり、
+        # ここでは読まない（ビルドに使うのはイメージが存在するバージョン）。
+        #
+        # target 名にはドットが使えず "1-91-0-bookworm" の形なので、タグに使う値は
+        # args から導出する。is_latest / is_minor_latest はどちらも一覧の並び順では
+        # なく semver 比較で決める。同じ minor に patch が複数あるとき minor タグを
+        # 両方が書くと後勝ちになるため、その minor 系で最新の patch だけに付ける
+        map=$(docker buildx bake --print 2>/dev/null | jq -c --arg stage '${{ inputs.stage }}' '
+          def vkey: split(".") | map(tonumber);
+          def minor: split(".")[0:2] | join(".");
+          def major: split(".")[0];
+          ([.target[].args.RUST_VERSION] | unique) as $all
+          | ($all | max_by(vkey)) as $latest
+          | ($all | group_by(minor) | map(max_by(vkey))) as $minor_latest
+          | ($all | group_by(major) | map(max_by(vkey))) as $major_latest
+          | [ .target | to_entries[]
+              | select((.value.target // "default") == $stage)
+              | .value.args.RUST_VERSION as $v
+              # 最終ステージ名がそのまま variant になる（default は素のイメージ）
+              | (if (.value.target // "default") == "default" then ""
+                 else "-" + .value.target end) as $variant
+              | { target: .key,
+                  minor: ($v | minor),
+                  major: ($v | major),
+                  is_latest: ($v == $latest),
+                  is_minor_latest: (($minor_latest | index($v)) != null),
+                  is_major_latest: (($major_latest | index($v)) != null),
+                  is_default_base: (.value.args.IS_DEFAULT_BASE == "true"),
+                  variant: $variant,
+                  version: $v,
+                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-")) + $variant) } ]
+          | group_by(.version) | map({key: .[0].version, value: .}) | from_entries')
+
+        {
+          echo "targets=${map}"
+          # 新しいバージョンから並べる
+          echo "versions=$(jq -cn --argjson m "${map}" \
+            '$m | keys_unsorted | sort_by(split(".") | map(tonumber)) | reverse')"
+        } >> "${GITHUB_OUTPUT}"
 
   # バージョンごとに reusable workflow を呼ぶ。Actions の UI では
   # "1.91.0 / bookworm-mold" のようにバージョンでまとまって表示される
@@ -40,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_version: ${{ fromJson(needs.prepare.outputs.rust_versions) }}
+        rust_version: ${{ fromJson(needs.prepare.outputs.versions) }}
     # reusable workflow のジョブは呼び出し側の権限を上限にするため、
     # ここで id-token を渡さないと attestation の署名ができない
     permissions:
@@ -52,6 +90,7 @@ jobs:
     with:
       rust_version: ${{ matrix.rust_version }}
       stage: ${{ inputs.stage }}
+      targets: ${{ toJson(fromJson(needs.prepare.outputs.targets)[matrix.rust_version]) }}
     secrets: inherit
 
   # 各 build-push が上げた検証結果と、run 全体のジョブの成否をまとめて

@@ -11,62 +11,20 @@ on:
         description: ビルドする最終ステージ（default / mold / wild）
         required: true
         type: string
+      targets:
+        description: このバージョンでビルドする target の JSON（呼び出し側が bake から作る）
+        required: true
+        type: string
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
-    outputs:
-      targets: ${{ steps.targets.outputs.targets }}
-
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    - name: Build the job matrix for this rust version
-      id: targets
-      run: |
-        # target 名にはドットが使えず "1-91-0-bookworm" の形なので、
-        # タグに使う値は args から導出する。
-        # is_latest / is_minor_latest はどちらも一覧の並び順ではなく semver 比較で決める。
-        # 同じ minor に patch が複数あるとき minor タグを両方が書くと後勝ちになるため、
-        # その minor 系で最新の patch だけに付ける
-        echo "targets=$(docker buildx bake --print 2>/dev/null \
-          | jq -c --arg v '${{ inputs.rust_version }}' --arg stage '${{ inputs.stage }}' '
-          def vkey: split(".") | map(tonumber);
-          def minor: split(".")[0:2] | join(".");
-          def major: split(".")[0];
-          ([.target[].args.RUST_VERSION] | unique) as $all
-          | ($all | max_by(vkey)) as $latest
-          | ($all | group_by(minor) | map(max_by(vkey))) as $minor_latest
-          | ($all | group_by(major) | map(max_by(vkey))) as $major_latest
-          | [ .target | to_entries[]
-              | select(.value.args.RUST_VERSION == $v)
-              | select((.value.target // "default") == $stage)
-              # 最終ステージ名がそのまま variant になる（default は素のイメージ）
-              | (if (.value.target // "default") == "default" then ""
-                 else "-" + .value.target end) as $variant
-              | { target: .key,
-                  minor: ($v | minor),
-                  major: ($v | major),
-                  is_latest: ($v == $latest),
-                  is_minor_latest: (($minor_latest | index($v)) != null),
-                  is_major_latest: (($major_latest | index($v)) != null),
-                  is_default_base: (.value.args.IS_DEFAULT_BASE == "true"),
-                  variant: $variant,
-                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-")) + $variant) } ]
-        ')" >> "${GITHUB_OUTPUT}"
-
   build-push:
     # Actions の UI は末尾のセグメントだけ見せることがあり、suffix だけだと
     # バージョンをまたいで bookworm が並ぶ。ビルドしているタグをそのまま出す
     name: ${{ inputs.rust_version }}-${{ matrix.suffix }}
-    needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.prepare.outputs.targets) }}
+        include: ${{ fromJson(inputs.targets) }}
     runs-on: ubuntu-latest
 
     permissions:
