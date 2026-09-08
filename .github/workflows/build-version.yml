@@ -259,8 +259,12 @@ jobs:
           --json "image-facts/${{ inputs.rust_version }}-${{ matrix.suffix }}.json"
 
     # 一覧は run 全体で 1 枚にまとめたいので、ここでは事実だけ渡す。
-    # 検証が落ちても結果を表に出したいので always
+    # 検証が落ちても結果を表に出したいので always。
+    # artifact サービスは 403 "Error from intermediary" を間欠的に返す。
+    # ここで運ぶのは表に出す metadata だけで、検証自体は前のステップで
+    # 済んでいるため、失敗してもジョブは落とさない（表の該当行が — になる）
     - name: Upload the image facts
+      continue-on-error: true
       if: ${{ always() && steps.verify.outcome != 'skipped' }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:

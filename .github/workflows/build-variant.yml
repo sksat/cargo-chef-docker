@@ -69,7 +69,10 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+    # upload 側と同じ理由で、artifact の 403 で run 全体を赤くしない。
+    # 取れなかった分は表で — になる
     - name: Download the image facts
+      continue-on-error: true
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         pattern: image-facts-*
