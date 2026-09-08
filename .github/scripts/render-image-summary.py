@@ -2,11 +2,13 @@
 """ビルドしたイメージの一覧を Actions の job summary 用 markdown にする。
 
 target ごとの検証結果（verify-base-layers.py の --json）と、run 全体の
-ジョブ一覧（Actions API）を突き合わせて 1 枚の表にする。ビルドが途中で
-落ちた target は JSON が無いので、ジョブの conclusion だけが並ぶ。
+ジョブ一覧（Actions API）を突き合わせて 1 枚の表にする。publish していない
+target は JSON が無いので、ジョブの conclusion だけが並ぶ。
 
-usage: render-image-summary.py --jobs jobs.json [--facts DIR]
+usage: render-image-summary.py --jobs jobs.json [--facts DIR] [--expect-facts]
   jobs.json: gh api /repos/{repo}/actions/runs/{id}/jobs --paginate --jq '.jobs[]' | jq -s '.'
+  --expect-facts: publish する run で使う。成功したビルドがあるのに facts が
+                  1 件も無ければ、表を出したうえで失敗する
 """
 import argparse
 import json
