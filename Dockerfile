@@ -51,12 +51,20 @@ FROM build AS wild-dist
 
 # depName=wild-linker/wild datasource=github-releases
 ARG WILD_VERSION="0.10.0"
+# ダウンロードした tarball を検証する。upstream は checksum ファイルも署名も
+# 出しておらず、release API の digest だけがある。ここに固定しておけば、
+# 同名アセットが差し替えられた場合に気づける。
+# バージョンを上げたときの更新:
+#   gh api /repos/wild-linker/wild/releases/tags/<version> \
+#     --jq '.assets[] | select(.name|endswith("-unknown-linux-gnu.tar.gz")) | "\(.name) \(.digest)"'
+ARG WILD_SHA256_X86_64="641265506a7c06cfb03181b8916ab663ec8407855db6d4db7f8450667d105283"
+ARG WILD_SHA256_AARCH64="e9d670e41f76481a68984f816e25bd2f124664db3ac935053e1a6fc41d2894c2"
 ARG TARGETPLATFORM
 
 RUN set -eux; \
     case "${TARGETPLATFORM}" in \
-      linux/amd64) arch=x86_64 ;; \
-      linux/arm64) arch=aarch64 ;; \
+      linux/amd64) arch=x86_64;  sha="${WILD_SHA256_X86_64}" ;; \
+      linux/arm64) arch=aarch64; sha="${WILD_SHA256_AARCH64}" ;; \
       # bake の WILD_PLATFORMS で絞っているので通常ここには来ない
       *) echo "wild does not support ${TARGETPLATFORM}" >&2; exit 1 ;; \
     esac; \
@@ -67,6 +75,8 @@ RUN set -eux; \
     curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors --max-time 180 \
       -o /tmp/wild.tar.gz \
       "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz"; \
+    echo "${sha}  /tmp/wild.tar.gz" | sha256sum -c - \
+      || { echo "wild ${WILD_VERSION} (${arch}) の sha256 が合わない。バージョンを上げたなら ARG も更新する" >&2; exit 1; }; \
     # 展開は捨てるステージの /tmp だが、アーカイブ側の owner を持ち込まない
     tar xzf /tmp/wild.tar.gz --no-same-owner -C /tmp; \
     install -Dm755 "/tmp/${name}/wild" /out/wild

@@ -131,8 +131,10 @@ use `--ld-path=wild`, or `-fuse-ld=wild` via the `ld.wild` symlink next to the
 binary.
 
 Unlike mold, the version does not come from Debian — wild is not packaged there,
-so the binary comes from the upstream release and is pinned in the
-[`Dockerfile`](Dockerfile).
+so the binary comes from the upstream release. Both the version and the tarball's
+sha256 are pinned in the [`Dockerfile`](Dockerfile) and the download is checked
+against it, so an asset replaced under the same name does not go unnoticed.
+Upstream publishes no checksum file, signature or attestation of its own.
 
 ## Building locally
 
