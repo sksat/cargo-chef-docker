@@ -47,15 +47,23 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Get base image tag from docker-bake.hcl
-      id: base_tag
+    - name: Read image metadata from docker-bake.hcl
+      id: bake_meta
       env:
         RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
       run: |
-        # description に埋める。rust:<ver>-<base_img> の合成は bake 側の定義なので、
+        # ベースイメージのタグと mold の有無はどちらも bake 側の定義なので、
         # workflow で組み立て直さず解決済みの値を読む
-        echo "base_tag=$(docker buildx bake "${{ matrix.base_img }}" --print 2>/dev/null \
-          | jq -r '.target."${{ matrix.base_img }}".args.BASE_TAG')" >> "${GITHUB_OUTPUT}"
+        printed=$(docker buildx bake "${{ matrix.base_img }}" --print 2>/dev/null)
+        base_tag=$(jq -r '.target."${{ matrix.base_img }}".args.BASE_TAG' <<< "${printed}")
+        stage=$(jq -r '.target."${{ matrix.base_img }}".target // "default"' <<< "${printed}")
+
+        description="Prebuilt rust:${base_tag} image with cargo-chef for faster Docker layer caching"
+        if [ "${stage}" = "mold" ]; then
+          description="${description}, plus the mold linker"
+        fi
+        echo "description=${description}" >> "${GITHUB_OUTPUT}"
+        echo "stage=${stage}" >> "${GITHUB_OUTPUT}"
 
     - name: Docker meta
       id: meta
@@ -79,9 +87,9 @@ jobs:
         # 既定ではリポジトリの description が入る。labels と annotations は
         # それぞれ別の input から組まれるため両方に指定する
         labels: |
-          org.opencontainers.image.description=Prebuilt rust:${{ steps.base_tag.outputs.base_tag }} image with cargo-chef for faster Docker layer caching
+          org.opencontainers.image.description=${{ steps.bake_meta.outputs.description }}
         annotations: |
-          org.opencontainers.image.description=Prebuilt rust:${{ steps.base_tag.outputs.base_tag }} image with cargo-chef for faster Docker layer caching
+          org.opencontainers.image.description=${{ steps.bake_meta.outputs.description }}
 
     - name: Use mirror.gcr.io as a Docker Hub mirror
       run: |
@@ -155,5 +163,8 @@ jobs:
             --set "*.tags=cargo-chef-test:${{ matrix.base_img }}" \
             --load
           docker run --rm "cargo-chef-test:${{ matrix.base_img }}" cargo chef --version
+          if [ "${{ steps.bake_meta.outputs.stage }}" = "mold" ]; then
+            docker run --rm "cargo-chef-test:${{ matrix.base_img }}" mold --version
+          fi
           echo "::endgroup::"
         done

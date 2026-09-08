@@ -35,7 +35,19 @@ RUN set -eux; \
     fi; \
     cargo install cargo-chef --target="${target}" --version "${CARGO_CHEF_VERSION#v}" --locked
 
-FROM ${BASE_IMG}:${BASE_TAG}
+FROM ${BASE_IMG}:${BASE_TAG} AS default
 # 公式 rust イメージの CARGO_HOME。COPY ではベースイメージ由来の ENV に頼らず明示する
 ARG CARGO_BIN=/usr/local/cargo/bin
 COPY --from=build ${CARGO_BIN}/cargo-chef ${CARGO_BIN}/cargo-chef
+
+# -mold タグ用。mold を入れるだけで、cargo が使う設定は入れない
+FROM default AS mold
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y mold \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# 最後のステージが --target なしのビルド対象になる。
+# mold を末尾に置くと素の `docker build .` が mold 版になってしまうため、
+# default の別名を最後に置く
+FROM default
