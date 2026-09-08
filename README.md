@@ -35,12 +35,24 @@ RUN cargo build --release
 
 ## Tags
 
+Same shapes as the [official rust image](https://hub.docker.com/_/rust):
+
 | shape | example | notes |
 |---|---|---|
 | `<rust>-<base>` | `1.91.0-bookworm` | pinned rust version |
-| `latest-<base>` | `latest-bookworm` | newest rust version built here |
-| `<rust>-<base>-mold` | `1.91.0-bookworm-mold` | see [mold](#mold) |
+| `<major.minor>-<base>` | `1.91-bookworm` | newest patch of that minor line |
+| `<major>-<base>` | `1-bookworm` | newest version of that major line |
+| `<base>` | `bookworm` | newest version built here |
+| `latest-<base>` | `latest-bookworm` | same as `<base>`, kept as an alias |
 | `sha-<sha>-<rust>-<base>` | `sha-40da647-1.91.0-bookworm` | a single commit of this repository |
+
+`trixie` is the default base and also gets the shapes without a base
+name — `1.91.0`, `1.91`, `1`, `latest` — matching where upstream puts
+them.
+
+Every shape has a [`-mold`](#mold) counterpart: `1.91.0-bookworm-mold`,
+`bookworm-mold`, and for the default base `1.91.0-mold`, `1.91-mold`,
+`1-mold`, `latest-mold`.
 
 `<base>` is one of `slim`, `trixie`, `slim-trixie`, `bookworm`, `slim-bookworm`,
 matching the [official rust image](https://hub.docker.com/_/rust) variant. Note
