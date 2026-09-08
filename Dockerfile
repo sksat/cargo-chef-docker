@@ -17,8 +17,9 @@ ARG BUILDPLATFORM
 RUN set -eux; \
     case "${TARGETPLATFORM}" in \
       linux/amd64)   target=x86_64-unknown-linux-gnu;      pkgs='g++-x86-64-linux-gnu libc6-dev-amd64-cross';    linker=x86_64-linux-gnu-gcc ;; \
-      linux/arm64)   target=aarch64-unknown-linux-gnu;     pkgs='g++-aarch64-linux-gnu libc6-dev-arm64-cross';   linker=aarch64-linux-gnu-gcc ;; \
       linux/386)     target=i686-unknown-linux-gnu;        pkgs='g++-i686-linux-gnu libc6-dev-i386-cross';       linker=i686-linux-gnu-gcc ;; \
+      linux/arm64)   target=aarch64-unknown-linux-gnu;     pkgs='g++-aarch64-linux-gnu libc6-dev-arm64-cross';   linker=aarch64-linux-gnu-gcc ;; \
+      linux/arm/v7)  target=armv7-unknown-linux-gnueabihf; pkgs='g++-arm-linux-gnueabihf libc6-dev-armhf-cross';  linker=arm-linux-gnueabihf-gcc ;; \
       linux/riscv64) target=riscv64gc-unknown-linux-gnu;   pkgs='g++-riscv64-linux-gnu libc6-dev-riscv64-cross'; linker=riscv64-linux-gnu-gcc ;; \
       *) echo "unsupported TARGETPLATFORM: ${TARGETPLATFORM}" >&2; exit 1 ;; \
     esac; \
