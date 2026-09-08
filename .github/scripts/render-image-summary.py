@@ -2,11 +2,13 @@
 """ビルドしたイメージの一覧を Actions の job summary 用 markdown にする。
 
 target ごとの検証結果（verify-base-layers.py の --json）と、run 全体の
-ジョブ一覧（Actions API）を突き合わせて 1 枚の表にする。ビルドが途中で
-落ちた target は JSON が無いので、ジョブの conclusion だけが並ぶ。
+ジョブ一覧（Actions API）を突き合わせて 1 枚の表にする。publish していない
+target は JSON が無いので、ジョブの conclusion だけが並ぶ。
 
-usage: render-image-summary.py --jobs jobs.json [--facts DIR]
+usage: render-image-summary.py --jobs jobs.json [--facts DIR] [--expect-facts]
   jobs.json: gh api /repos/{repo}/actions/runs/{id}/jobs --paginate --jq '.jobs[]' | jq -s '.'
+  --expect-facts: publish する run で使う。成功したビルドがあるのに facts が
+                  1 件も無ければ、表を出したうえで失敗する
 """
 import argparse
 import json
@@ -14,10 +16,10 @@ import pathlib
 import re
 import sys
 
-# reusable workflow をネストしているので、ジョブ名は呼び出し側の名前が
-# 前置されて "build / <rust version> / <suffix>" になる。
-# 各バージョンの prepare は matrix を組むだけなので一覧には出さない
-JOB_NAME = re.compile(r"^(?:[^/]+ / )?(\d+\.\d+\.\d+) / (?!prepare$)(.+)$")
+# reusable workflow をネストしているのでジョブ名は
+# "build / <rust version> / <tag>" になる。末尾がビルドしたタグ。
+# matrix を組むだけの prepare はタグの形にならないので自然に除かれる
+JOB_LEAF = re.compile(r"^(\d+\.\d+\.\d+)-(.+)$")
 
 # 表の列順。ここに無い platform は後ろにアルファベット順で並べる
 PLATFORM_ORDER = ["linux/amd64", "linux/arm64", "linux/386", "linux/arm/v7"]
@@ -51,10 +53,12 @@ def main():
     jobs = json.load(open(args.jobs))
     rows = []
     for job in jobs:
-        m = JOB_NAME.match(job["name"])
+        leaf = job["name"].split(" / ")[-1]
+        m = JOB_LEAF.match(leaf)
         if m:
             rows.append(
                 {
+                    "tag": leaf,
                     "rust": m.group(1),
                     "suffix": m.group(2),
                     "conclusion": job.get("conclusion") or "in_progress",
@@ -65,14 +69,14 @@ def main():
     if not rows:
         return 0
 
-    # tag は "<rust version>-<suffix>" なのでファイル名ではなく中身の tag で対応付ける
+    # ファイル名ではなく中身の tag で対応付ける
     facts_by_tag = {}
     if args.facts:
         for path in sorted(pathlib.Path(args.facts).rglob("*.json")):
             facts = json.load(open(path))
             facts_by_tag[facts["tag"]] = facts
     for row in rows:
-        row["facts"] = facts_by_tag.get(f"{row['rust']}-{row['suffix']}")
+        row["facts"] = facts_by_tag.get(row["tag"])
 
     # 新しいバージョンから並べる。tag に version が入るので rust 列は持たない
     rows.sort(key=lambda r: ([-x for x in vkey(r["rust"])], r["suffix"]))
@@ -92,7 +96,7 @@ def main():
         build = MARK.get(row["conclusion"], row["conclusion"])
         if row["url"]:
             build = f"[{build}]({row['url']})"
-        cells = [f"`{row['rust']}-{row['suffix']}`", build]
+        cells = [f"`{row['tag']}`", build]
         if verified:
             cells += verification_cells(row["facts"], plats)
         out.append("| " + " | ".join(cells) + " |")
