@@ -38,7 +38,7 @@ target "base" {
   inherits   = ["docker-metadata-action"]
   context    = "."
   dockerfile = "Dockerfile"
-  platforms  = ["linux/amd64", "linux/arm64", "linux/386"]
+  platforms  = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm/v7"]
 }
 
 target "image" {
