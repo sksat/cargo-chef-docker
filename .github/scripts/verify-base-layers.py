@@ -48,7 +48,7 @@ def pull_token(host, repo):
     elif host == "registry-1.docker.io":
         url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repo}:pull"
     else:
-        raise SystemExit(f"token endpoint が未対応の registry: {host}")
+        raise SystemExit(f"no known token endpoint for registry: {host}")
     return get_json(url)["token"]
 
 
@@ -83,8 +83,8 @@ class Registry:
                 )
             except urllib.error.URLError as e:
                 errors.append(f"{host}: {e}")
-                print(f"::warning::{host} から {self.repo}:{ref} を読めなかった（{e}）")
-        raise SystemExit(f"{self.repo}:{ref} を読めなかった（{'、'.join(errors)}）")
+                print(f"::warning::could not read {self.repo}:{ref} from {host} ({e})")
+        raise SystemExit(f"could not read {self.repo}:{ref} ({'; '.join(errors)})")
 
     def platforms(self, ref):
         """index の platform → manifest digest。unknown/unknown（attestation）は除く。"""
@@ -122,7 +122,7 @@ def main():
     for plat, digest in sorted(ours.items()):
         r = {"platform": plat}
         if plat not in base:
-            r["status"] = f"ベースに {plat} がない"
+            r["status"] = f"missing {plat} in the base image"
             results.append(r)
             continue
         ls = ours_reg.layers(digest)
@@ -135,9 +135,9 @@ def main():
             first = next(
                 (i for i, (a, b) in enumerate(zip(ls, bs)) if a[0] != b[0]), min(len(ls), len(bs))
             )
-            r["status"] = f"layer[{first}] からベースと相違"
+            r["status"] = f"differs from the base at layer[{first}]"
         elif args.expect_extra is not None and r["extra_layers"] != args.expect_extra:
-            r["status"] = f"追加レイヤが {r['extra_layers']} 個、期待は {args.expect_extra} 個"
+            r["status"] = f"{r['extra_layers']} extra layers, expected {args.expect_extra}"
         else:
             r["status"] = "OK"
         results.append(r)
@@ -164,7 +164,7 @@ def main():
             )
 
     if not ok:
-        print(f"::error::{args.image} のレイヤがベース rust:{args.base_tag} と整合しない")
+        print(f"::error::layers of {args.image} do not match the base rust:{args.base_tag}")
         return 1
     return 0
 

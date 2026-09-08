@@ -75,10 +75,10 @@ def main():
     plats = [p for p in PLATFORM_ORDER if p in used] + sorted(used - set(PLATFORM_ORDER))
     verified = bool(plats)
 
-    out = ["## イメージ一覧", ""]
+    out = ["## Images", ""]
     head = ["tag", "build"]
     if verified:
-        head += ["ベースと一致"] + [f"`{p}`" for p in plats]
+        head += ["base match"] + [f"`{p}`" for p in plats]
     out.append("| " + " | ".join(head) + " |")
     out.append("|" + "---|" * len(head))
 
@@ -95,16 +95,20 @@ def main():
     if verified:
         base = next(r["facts"]["base"] for r in rows if r["facts"])
         out.append(
-            "「ベースと一致」は、publish したイメージのレイヤ列が公式 `rust:<tag>`"
-            f"（例 `{base}`）のレイヤ列を接頭辞として持ち、増えているのが"
-            " cargo-chef（と `-mold` では mold）の分だけであることの検証。"
+            "`base match` checks that the published layer list starts with the layers of the"
+            f" official `rust:<tag>` (e.g. `{base}`), and that the only additions are cargo-chef"
+            " (plus mold for `-mold`). `official N + M` means the base image has N layers and we"
+            " add M on top."
         )
         out.append("")
-        out.append("platform 列は registry 上の圧縮サイズで、括弧内は公式イメージからの増分。")
+        out.append(
+            "Platform columns show the compressed size in the registry;"
+            " the value in parentheses is the increase over the official image."
+        )
     else:
         out.append(
-            "レイヤ検証とサイズは publish 済みのイメージを読むため、"
-            "push しない run では出ない。"
+            "Layer verification and sizes are read from the published image,"
+            " so they are not shown for runs that do not push."
         )
     print("\n".join(out))
     return 0
@@ -117,13 +121,13 @@ def verification_cells(facts, plats):
     by_plat = {p["platform"]: p for p in facts["platforms"]}
     bad = [p for p in facts["platforms"] if p["status"] != "OK"]
     if bad:
-        detail = "、".join(f"{p['platform']}: {p['status']}" for p in bad)
+        detail = "; ".join(f"{p['platform']}: {p['status']}" for p in bad)
         match = f"❌ {detail}"
     else:
         counts = {(p["base_layers"], p["extra_layers"]) for p in facts["platforms"]}
         if len(counts) == 1:
             base_layers, extra = counts.pop()
-            match = f"✅ 公式 {base_layers} 層 + {extra} 層"
+            match = f"✅ official {base_layers} + {extra}"
         else:
             match = "✅"
 
