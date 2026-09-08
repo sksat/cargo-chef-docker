@@ -97,8 +97,8 @@ def main():
         out.append(
             "`base match` checks that the published layer list starts with the layers of the"
             f" official `rust:<tag>` (e.g. `{base}`), and that the only additions are cargo-chef"
-            " (plus mold for `-mold`). `official N + M` means the base image has N layers and we"
-            " add M on top."
+            " (plus the linker for `-mold` and `-wild`). `official N + M` means the base image has"
+            " N layers and we add M on top."
         )
         out.append("")
         out.append(
