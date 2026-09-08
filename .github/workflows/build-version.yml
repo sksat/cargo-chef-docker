@@ -12,6 +12,9 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     outputs:
       targets: ${{ steps.targets.outputs.targets }}
 
@@ -55,6 +58,14 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.prepare.outputs.targets) }}
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # ghcr への push と、attestation を referrer として置くのに要る
+      packages: write
+      # Sigstore で署名するための OIDC トークン
+      id-token: write
+      attestations: write
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -159,6 +170,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build & Push container image
+      id: build
       uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
       env:
         # 参照先は docker-bake.hcl の CACHE_REF に集約されている
@@ -170,6 +182,10 @@ jobs:
           cwd://${{ steps.meta.outputs.bake-file }}
           cwd://${{ steps.meta.outputs.bake-file-annotations }}
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        # attestation は push するときだけ。provenance は buildx の既定でも
+        # 付くが、既定値に依存せず mode を明示する。SBOM は既定では付かない
+        provenance: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'mode=max' || 'false' }}
+        sbom: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
     - name: Test image
       run: |
@@ -192,6 +208,29 @@ jobs:
           fi
           echo "::endgroup::"
         done
+
+    # bake が付ける SLSA provenance / SBOM はイメージの隣に置かれた未署名の
+    # メタデータで、push 権限があれば差し替えられる。Sigstore で署名した
+    # attestation を別に作り、`gh attestation verify` で検証できるようにする
+    - name: Attest the build provenance
+      id: attest
+      if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      with:
+        subject-name: ghcr.io/${{ github.repository }}
+        subject-digest: ${{ fromJSON(steps.build.outputs.metadata)[matrix.target]['containerimage.digest'] }}
+        # referrer として registry にも置く。GitHub の store だけに頼らない
+        push-to-registry: true
+
+    - name: Verify the attestation
+      if: ${{ steps.attest.outcome == 'success' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # 署名が実際に検証できることまで CI で確かめる
+        gh attestation verify \
+          "oci://ghcr.io/${{ github.repository }}@${{ fromJSON(steps.build.outputs.metadata)[matrix.target]['containerimage.digest'] }}" \
+          --repo "${{ github.repository }}"
 
     - name: Verify the layers against the official image
       id: verify

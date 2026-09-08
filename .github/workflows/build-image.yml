@@ -16,6 +16,9 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     outputs:
       rust_versions: ${{ steps.versions.outputs.rust_versions }}
 
@@ -40,6 +43,13 @@ jobs:
       fail-fast: false
       matrix:
         rust_version: ${{ fromJson(needs.prepare.outputs.rust_versions) }}
+    # reusable workflow のジョブは呼び出し側の権限を上限にするため、
+    # ここで id-token を渡さないと attestation の署名ができない
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/build-version.yml
     with:
       rust_version: ${{ matrix.rust_version }}
@@ -54,6 +64,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
+      contents: read
       actions: read
 
     steps:
