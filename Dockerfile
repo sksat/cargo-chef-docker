@@ -4,6 +4,9 @@ ARG BASE_IMG=rust
 # depName=rust datasource=docker
 ARG RUST_VERSION="1.90.0"
 ARG BASE_TAG=${RUST_VERSION}
+# workflow が base なしタグの対象を判定するために bake が渡す。
+# ビルドでは参照しないが、宣言しないと未使用 build arg の警告が出る
+ARG IS_DEFAULT_BASE
 
 # cargo-chef をクロスコンパイルする。BUILDPLATFORM に固定することで、
 # rustc を QEMU 上で動かさずに済ませる（TARGETPLATFORM で動かすと桁違いに遅い）

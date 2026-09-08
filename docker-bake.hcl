@@ -34,6 +34,13 @@ variable "CACHE_TO" {
   default = ""
 }
 
+// suffix なしのタグ（1.91.0 / 1.91 / latest）を付ける base_img。
+// 公式 rust イメージは trixie の行に suffix なしタグを付けている
+//   Tags: 1-trixie, 1.98-trixie, 1.98.0-trixie, trixie, 1, 1.98, 1.98.0, latest
+variable "DEFAULT_BASE_IMG" {
+  default = "trixie"
+}
+
 variable "BASE_IMGS" {
   default = ["slim", "trixie", "slim-trixie", "bookworm", "slim-bookworm"]
 }
@@ -65,7 +72,12 @@ target "image" {
 
   inherits   = ["base"]
   target     = variant == "" ? "default" : "mold"
-  args       = { BASE_TAG = "${rust_version}-${base_img}", RUST_VERSION = rust_version }
+  args = {
+    BASE_TAG     = "${rust_version}-${base_img}"
+    RUST_VERSION = rust_version
+    # workflow が base なしタグ（1.91.0, 1.91-mold など）の対象を判定するために読む
+    IS_DEFAULT_BASE = (base_img == DEFAULT_BASE_IMG) ? "true" : "false"
+  }
   cache-from = ["type=registry,ref=${CACHE_REF}:buildcache-${rust_version}-${base_img}${variant}"]
   cache-to   = CACHE_TO == "" ? [] : ["type=registry,ref=${CACHE_REF}:buildcache-${rust_version}-${base_img}${variant},mode=max"]
 }
