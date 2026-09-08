@@ -58,6 +58,32 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Use mirror.gcr.io as a Docker Hub mirror
+      run: |
+        # host の docker daemon 経由の pull（earthly/buildkitd, tonistiigi/binfmt）
+        sudo mkdir -p /etc/docker
+        tmp=$(mktemp)
+        if [ -s /etc/docker/daemon.json ]; then
+          jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' /etc/docker/daemon.json > "${tmp}"
+        else
+          echo '{"registry-mirrors": ["https://mirror.gcr.io"]}' > "${tmp}"
+        fi
+        sudo cp "${tmp}" /etc/docker/daemon.json
+        sudo systemctl restart docker
+        docker info --format 'daemon registry mirrors: {{json .RegistryConfig.Mirrors}}'
+
+        # buildkitd 経由の pull（Earthfile の FROM が引く rust イメージ）
+        # `earthly config` は値を YAML として解釈するため TOML を渡せない。設定ファイルに直接書く
+        mkdir -p ~/.earthly
+        cat > ~/.earthly/config.yml <<'EOF'
+        global:
+          buildkit_additional_config: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+        EOF
+        echo "--- ~/.earthly/config.yml"
+        cat ~/.earthly/config.yml
+
     - name: Login to ghcr.io
       uses: docker/login-action@v4.6.0
       if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
