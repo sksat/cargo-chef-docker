@@ -1,4 +1,4 @@
-name: build wild
+name: build container-wild
 
 on:
   push:

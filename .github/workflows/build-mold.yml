@@ -1,4 +1,4 @@
-name: build mold
+name: build container-mold
 
 on:
   push:

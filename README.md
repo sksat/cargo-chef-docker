@@ -1,8 +1,8 @@
 # cargo-chef-docker
 
 [![build container](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml)
-[![build mold](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml)
-[![build wild](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml)
+[![build container-mold](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml)
+[![build container-wild](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml)
 [![license](https://img.shields.io/github/license/sksat/cargo-chef-docker)](LICENSE)
 [![docker pulls](https://img.shields.io/docker/pulls/sksat/cargo-chef-docker)](https://hub.docker.com/r/sksat/cargo-chef-docker)
 [![latest-bookworm](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest-bookworm?label=latest-bookworm)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
