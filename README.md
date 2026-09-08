@@ -50,9 +50,10 @@ Same shapes as the [official rust image](https://hub.docker.com/_/rust):
 name — `1.91.0`, `1.91`, `1`, `latest` — matching where upstream puts
 them.
 
-Every shape has [`-mold`](#mold) and [`-wild`](#wild) counterparts:
-`1.91.0-bookworm-mold`, `bookworm-wild`, and for the default base
-`1.91.0-mold`, `1.91-wild`, `1-mold`, `latest-wild`.
+Append [`-mold`](#mold) or [`-wild`](#wild) to any shape above to get that
+variant — `1.91.0-bookworm-mold` and `1.91.0-bookworm-wild` both exist, as do
+`bookworm-mold` / `bookworm-wild` and, for the default base, `latest-mold` /
+`latest-wild`.
 
 `<base>` is one of `slim`, `trixie`, `slim-trixie`, `bookworm`, `slim-bookworm`,
 matching the [official rust image](https://hub.docker.com/_/rust) variant. Note

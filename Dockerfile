@@ -61,8 +61,13 @@ RUN set -eux; \
       *) echo "wild does not support ${TARGETPLATFORM}" >&2; exit 1 ;; \
     esac; \
     name="wild-linker-${WILD_VERSION}-${arch}-unknown-linux-gnu"; \
-    curl -fsSL "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz" \
-      | tar xz -C /tmp; \
+    # tar に直接パイプすると curl の --retry が途中から再送してストリームを
+    # 壊すため、いったんファイルに落とす
+    curl -fsSL --retry 3 --retry-delay 2 --max-time 180 \
+      -o /tmp/wild.tar.gz \
+      "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz"; \
+    # 展開は捨てるステージの /tmp だが、アーカイブ側の owner を持ち込まない
+    tar xzf /tmp/wild.tar.gz --no-same-owner -C /tmp; \
     # 最終イメージに置く形をそのまま /out に作り、COPY 1 回で済ませる
     install -Dm755 "/tmp/${name}/wild" /out/usr/local/bin/wild; \
     # clang の -fuse-ld=wild は ld.wild を探す
