@@ -43,9 +43,10 @@
         "/^docker-bake\\.hcl$/"
       ],
       "matchStrings": [
-        "# depName=(?<depName>.*?) datasource=(?<datasource>.*)\n\\s*default\\s*=\\s*\"(?<currentValue>.*)\""
+        "# depName=(?<depName>.*?) packageName=(?<packageName>.*?) datasource=(?<datasource>.*)\n\\s*\"(?<currentValue>[^\"]*)\""
       ],
-      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}",
+      "autoReplaceStringTemplate": "# depName={{{depName}}} packageName={{{packageName}}} datasource={{{datasource}}}\n    \"{{{newValue}}}\",\n    \"{{{currentValue}}}\""
     }
   ]
 }

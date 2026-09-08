@@ -17,31 +17,41 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      rust_version: ${{ steps.rust_ver.outputs.rust_version }}
-      base_imgs: ${{ steps.base_imgs.outputs.base_imgs }}
+      targets: ${{ steps.targets.outputs.targets }}
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    - name: Get Rust version
-      id: rust_ver
+    - name: Build the job matrix from docker-bake.hcl
+      id: targets
       run: |
-        echo "rust_version=$(awk -F'[ ="]+' '$1 == "channel" { print $2 }' rust-toolchain)" >> "${GITHUB_OUTPUT}"
-        echo "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
-
-    - name: Get base image list from docker-bake.hcl
-      id: base_imgs
-      run: |
-        # docker-bake.hcl を base_img 一覧の単一のソースにする。
-        # bake --print は daemon 不要で、buildx は runner に同梱されている
-        echo "base_imgs=$(docker buildx bake --print 2>/dev/null | jq -c '.group.default.targets')" >> "${GITHUB_OUTPUT}"
+        # docker-bake.hcl を単一のソースにする。bake --print は daemon 不要で、
+        # buildx は runner に同梱されている。
+        # rust-toolchain は rust のリリース記録として残しており、ここでは読まない
+        # （ビルドに使うのはイメージが存在するバージョンで、別物）
+        #
+        # target 名にはドットが使えず "1-98-0-bookworm" の形なので、
+        # タグに使う値は args から導出する
+        # is_latest は一覧の並び順ではなく semver 比較で決める
+        echo "targets=$(docker buildx bake --print 2>/dev/null | jq -c '
+          def vkey: split(".") | map(tonumber);
+          ([.target[].args.RUST_VERSION] | unique | max_by(vkey)) as $latest
+          | [ .target | to_entries[]
+              | .value.args.RUST_VERSION as $v
+              | { target: .key,
+                  rust_version: $v,
+                  is_latest: ($v == $latest),
+                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-"))
+                           + (if .value.target == "mold" then "-mold" else "" end)) } ]
+        ')" >> "${GITHUB_OUTPUT}"
 
   build_and_push:
-    name: Build and Push
+    # matrix の値が全部連結されると読みにくいので、publish するタグに合わせる
+    name: Build and Push (${{ matrix.rust_version }}-${{ matrix.suffix }})
     needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        base_img: ${{ fromJson(needs.prepare.outputs.base_imgs) }}
+        include: ${{ fromJson(needs.prepare.outputs.targets) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -49,14 +59,12 @@ jobs:
 
     - name: Read image metadata from docker-bake.hcl
       id: bake_meta
-      env:
-        RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
       run: |
         # ベースイメージのタグと mold の有無はどちらも bake 側の定義なので、
         # workflow で組み立て直さず解決済みの値を読む
-        printed=$(docker buildx bake "${{ matrix.base_img }}" --print 2>/dev/null)
-        base_tag=$(jq -r '.target."${{ matrix.base_img }}".args.BASE_TAG' <<< "${printed}")
-        stage=$(jq -r '.target."${{ matrix.base_img }}".target // "default"' <<< "${printed}")
+        printed=$(docker buildx bake "${{ matrix.target }}" --print 2>/dev/null)
+        base_tag=$(jq -r '.target."${{ matrix.target }}".args.BASE_TAG' <<< "${printed}")
+        stage=$(jq -r '.target."${{ matrix.target }}".target // "default"' <<< "${printed}")
 
         description="Prebuilt rust:${base_tag} image with cargo-chef for faster Docker layer caching"
         if [ "${stage}" = "mold" ]; then
@@ -76,14 +84,13 @@ jobs:
         images: |
           ghcr.io/${{ github.repository }},enable=true
           sksat/${{ github.event.repository.name }},enable=true
-        flavor: |
-          latest=auto
-          suffix=-${{ needs.prepare.outputs.rust_version }}-${{ matrix.base_img }},onlatest=false
-          suffix=-${{ matrix.base_img }},onlatest=true
+        # sha / pr タグにも rust_version を入れる。入れないとバージョンが
+        # 複数あるとき同じタグに別イメージを push してしまう
         tags: |
-          type=sha
-          type=ref,event=pr
-          type=raw,value=${{ needs.prepare.outputs.rust_version }},enable={{is_default_branch}}
+          type=raw,value=${{ matrix.rust_version }},suffix=-${{ matrix.suffix }},enable={{is_default_branch}}
+          type=raw,value=latest,suffix=-${{ matrix.suffix }},enable=${{ matrix.is_latest && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          type=sha,suffix=-${{ matrix.rust_version }}-${{ matrix.suffix }}
+          type=ref,event=pr,suffix=-${{ matrix.rust_version }}-${{ matrix.suffix }}
         # 既定ではリポジトリの description が入る。labels と annotations は
         # それぞれ別の input から組まれるため両方に指定する
         labels: |
@@ -134,11 +141,10 @@ jobs:
     - name: Build & Push container image
       uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
       env:
-        RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
         # 参照先は docker-bake.hcl の CACHE_REF に集約されている
         CACHE_TO: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'registry' || '' }}
       with:
-        targets: ${{ matrix.base_img }}
+        targets: ${{ matrix.target }}
         files: |
           ./docker-bake.hcl
           cwd://${{ steps.meta.outputs.bake-file }}
@@ -146,25 +152,23 @@ jobs:
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
 
     - name: Test image
-      env:
-        RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
       run: |
         # platform は docker-bake.hcl の target 定義から読む。ハードコードすると
         # target ごとに platform を変えたときにテスト対象がずれる
-        platforms=$(docker buildx bake "${{ matrix.base_img }}" --print 2>/dev/null \
-          | jq -r '.target."${{ matrix.base_img }}".platforms[]')
+        platforms=$(docker buildx bake "${{ matrix.target }}" --print 2>/dev/null \
+          | jq -r '.target."${{ matrix.target }}".platforms[]')
         echo "platforms: ${platforms}"
 
         # multi-platform ビルドは --load できないため、platform ごとに単一 platform で load する
         for platform in ${platforms}; do
           echo "::group::${platform}"
-          docker buildx bake "${{ matrix.base_img }}" \
+          docker buildx bake "${{ matrix.target }}" \
             --set "*.platform=${platform}" \
-            --set "*.tags=cargo-chef-test:${{ matrix.base_img }}" \
+            --set "*.tags=cargo-chef-test:${{ matrix.target }}" \
             --load
-          docker run --rm "cargo-chef-test:${{ matrix.base_img }}" cargo chef --version
+          docker run --rm "cargo-chef-test:${{ matrix.target }}" cargo chef --version
           if [ "${{ steps.bake_meta.outputs.stage }}" = "mold" ]; then
-            docker run --rm "cargo-chef-test:${{ matrix.base_img }}" mold --version
+            docker run --rm "cargo-chef-test:${{ matrix.target }}" mold --version
           fi
           echo "::endgroup::"
         done

@@ -10,9 +10,19 @@
 // CI では docker/metadata-action が吐く bake ファイルを重ねて
 // docker-metadata-action target のタグ・ラベル・annotation を差し替える。
 
-variable "RUST_VERSION" {
-  # depName=rust datasource=docker
-  default = "1.90.0"
+// サポートする rust のバージョン。先頭が最新で、latest タグもここから作る。
+//
+// renovate が追跡するのは先頭（depName コメントが付いている行）だけ。
+// renovate.json の autoReplaceStringTemplate により、更新 PR は新しい版を先頭に
+// 足して押し出された版を2行目に残す。手で追記する必要はない。
+// 2行目以降は追跡対象外なので、patch が出ても上がらない
+// （追跡させると版数と同じ数だけ PR が開く）
+variable "RUST_VERSIONS" {
+  default = [
+    # depName=rust packageName=rust datasource=docker
+    "1.91.0",
+    "1.90.0",
+  ]
 }
 
 variable "CACHE_REF" {
@@ -44,19 +54,25 @@ target "base" {
 target "image" {
   // variant "" が素のイメージ、"-mold" が mold 入り。
   // target 名がそのままタグの suffix になる（1.90.0-bookworm-mold など）
-  name   = "${base_img}${variant}"
+  // target 名にドットは使えないため rust_version の "." を "-" にする。
+  // タグに使う値は args から導出する（target 名を分解しない）
+  name   = "${replace(rust_version, ".", "-")}-${base_img}${variant}"
   matrix = {
-    base_img = BASE_IMGS
-    variant  = ["", "-mold"]
+    rust_version = RUST_VERSIONS
+    base_img     = BASE_IMGS
+    variant      = ["", "-mold"]
   }
 
   inherits   = ["base"]
   target     = variant == "" ? "default" : "mold"
-  args       = { BASE_TAG = "${RUST_VERSION}-${base_img}" }
-  cache-from = ["type=registry,ref=${CACHE_REF}:buildcache-${base_img}${variant}"]
-  cache-to   = CACHE_TO == "" ? [] : ["type=registry,ref=${CACHE_REF}:buildcache-${base_img}${variant},mode=max"]
+  args       = { BASE_TAG = "${rust_version}-${base_img}", RUST_VERSION = rust_version }
+  cache-from = ["type=registry,ref=${CACHE_REF}:buildcache-${rust_version}-${base_img}${variant}"]
+  cache-to   = CACHE_TO == "" ? [] : ["type=registry,ref=${CACHE_REF}:buildcache-${rust_version}-${base_img}${variant},mode=max"]
 }
 
 group "default" {
-  targets = concat(BASE_IMGS, [for b in BASE_IMGS : "${b}-mold"])
+  targets = [
+    for t in setproduct(RUST_VERSIONS, BASE_IMGS, ["", "-mold"]) :
+    "${replace(t[0], ".", "-")}-${t[1]}${t[2]}"
+  ]
 }
