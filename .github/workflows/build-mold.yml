@@ -1,4 +1,4 @@
-name: build container
+name: build mold
 
 on:
   push:
@@ -23,5 +23,5 @@ jobs:
       attestations: write
     uses: ./.github/workflows/build-variant.yml
     with:
-      stage: default
+      stage: mold
     secrets: inherit

@@ -14,9 +14,10 @@ import pathlib
 import re
 import sys
 
-# reusable workflow 経由なのでジョブ名は "<rust version> / <suffix>" になる。
+# reusable workflow をネストしているので、ジョブ名は呼び出し側の名前が
+# 前置されて "build / <rust version> / <suffix>" になる。
 # 各バージョンの prepare は matrix を組むだけなので一覧には出さない
-JOB_NAME = re.compile(r"^(\d+\.\d+\.\d+) / (?!prepare$)(.+)$")
+JOB_NAME = re.compile(r"^(?:[^/]+ / )?(\d+\.\d+\.\d+) / (?!prepare$)(.+)$")
 
 # 表の列順。ここに無い platform は後ろにアルファベット順で並べる
 PLATFORM_ORDER = ["linux/amd64", "linux/arm64", "linux/386", "linux/arm/v7"]

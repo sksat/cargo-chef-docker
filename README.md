@@ -1,6 +1,8 @@
 # cargo-chef-docker
 
 [![build container](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml)
+[![build mold](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml)
+[![build wild](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml)
 [![license](https://img.shields.io/github/license/sksat/cargo-chef-docker)](LICENSE)
 [![docker pulls](https://img.shields.io/docker/pulls/sksat/cargo-chef-docker)](https://hub.docker.com/r/sksat/cargo-chef-docker)
 [![latest-bookworm](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest-bookworm?label=latest-bookworm)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
@@ -99,8 +101,11 @@ The layers are checked against the official image on every build: the published
 layer list must start with the layers of `rust:<tag>`, and exactly one layer is
 added on top. That single layer holds cargo-chef, and on `-mold` and `-wild` it
 holds the linker as well. The result and the image sizes for every
-tag are in the job summary of each
-[build run](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml).
+tag are in the job summary of each build run. Each variant is built by its own
+workflow, so there is one run for the plain images, one for
+[`-mold`](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-mold.yml)
+and one for
+[`-wild`](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml).
 
 ## mold
 
