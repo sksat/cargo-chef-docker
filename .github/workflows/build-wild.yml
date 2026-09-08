@@ -1,4 +1,4 @@
-name: build container
+name: build wild
 
 on:
   push:
@@ -26,5 +26,5 @@ jobs:
       actions: read
     uses: ./.github/workflows/build-variant.yml
     with:
-      stage: default
+      stage: wild
     secrets: inherit

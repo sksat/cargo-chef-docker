@@ -1,0 +1,90 @@
+name: build variant
+
+# variant ごとに別 run にする。matrix の上限は 1 run あたり 256 ジョブで、
+# 全 variant を 1 run に入れるとバージョンを増やしたときに先に当たる
+on:
+  workflow_call:
+    inputs:
+      stage:
+        description: ビルドする最終ステージ（default / mold / wild）
+        required: true
+        type: string
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      rust_versions: ${{ steps.versions.outputs.rust_versions }}
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Read the rust version list from docker-bake.hcl
+      id: versions
+      run: |
+        # docker-bake.hcl を単一のソースにする。bake --print は daemon 不要で、
+        # buildx は runner に同梱されている。
+        # rust-toolchain は rust のリリース記録として残しており、ここでは読まない
+        # （ビルドに使うのはイメージが存在するバージョンで、別物）
+        echo "rust_versions=$(docker buildx bake --print 2>/dev/null \
+          | jq -c '[.target[].args.RUST_VERSION] | unique')" >> "${GITHUB_OUTPUT}"
+
+  # バージョンごとに reusable workflow を呼ぶ。Actions の UI では
+  # "1.91.0 / bookworm-mold" のようにバージョンでまとまって表示される
+  build:
+    name: ${{ matrix.rust_version }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_version: ${{ fromJson(needs.prepare.outputs.rust_versions) }}
+    # reusable workflow のジョブは呼び出し側の権限を上限にするため、
+    # ここで id-token を渡さないと attestation の署名ができない
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/build-version.yml
+    with:
+      rust_version: ${{ matrix.rust_version }}
+      stage: ${{ inputs.stage }}
+    secrets: inherit
+
+  # 各 build-push が上げた検証結果と、run 全体のジョブの成否をまとめて
+  # job summary に出す。ビルドが落ちた run でこそ見たいので always
+  summary:
+    name: summary
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Download the image facts
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        pattern: image-facts-*
+        path: image-facts
+        merge-multiple: true
+
+    - name: Render the image summary
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # ビルドの成否はジョブの conclusion が持っている。matrix ジョブの
+        # outputs は互いに上書きするため、artifact ではなく API から読む
+        gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+          --paginate --jq '.jobs[]' | jq -s '.' > jobs.json
+
+        # summary ファイルは後から読めないので、ログにも同じものを残す
+        .github/scripts/render-image-summary.py --jobs jobs.json --facts image-facts \
+          | tee -a "${GITHUB_STEP_SUMMARY}"

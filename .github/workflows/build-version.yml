@@ -7,6 +7,10 @@ on:
         description: ビルドする rust のバージョン
         required: true
         type: string
+      stage:
+        description: ビルドする最終ステージ（default / mold / wild）
+        required: true
+        type: string
 
 jobs:
   prepare:
@@ -28,7 +32,8 @@ jobs:
         # is_latest / is_minor_latest はどちらも一覧の並び順ではなく semver 比較で決める。
         # 同じ minor に patch が複数あるとき minor タグを両方が書くと後勝ちになるため、
         # その minor 系で最新の patch だけに付ける
-        echo "targets=$(docker buildx bake --print 2>/dev/null | jq -c --arg v '${{ inputs.rust_version }}' '
+        echo "targets=$(docker buildx bake --print 2>/dev/null \
+          | jq -c --arg v '${{ inputs.rust_version }}' --arg stage '${{ inputs.stage }}' '
           def vkey: split(".") | map(tonumber);
           def minor: split(".")[0:2] | join(".");
           def major: split(".")[0];
@@ -38,6 +43,7 @@ jobs:
           | ($all | group_by(major) | map(max_by(vkey))) as $major_latest
           | [ .target | to_entries[]
               | select(.value.args.RUST_VERSION == $v)
+              | select((.value.target // "default") == $stage)
               # 最終ステージ名がそのまま variant になる（default は素のイメージ）
               | (if (.value.target // "default") == "default" then ""
                  else "-" + .value.target end) as $variant
