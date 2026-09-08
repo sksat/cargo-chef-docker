@@ -43,12 +43,52 @@ FROM ${BASE_IMG}:${BASE_TAG} AS default
 ARG CARGO_BIN=/usr/local/cargo/bin
 COPY --from=build ${CARGO_BIN}/cargo-chef ${CARGO_BIN}/cargo-chef
 
+# wild は upstream が glibc 版のバイナリを配布している。要求する glibc は
+# 2.34 までなので bookworm(2.36) でも trixie(2.41) でも動く。
+# build ステージを土台にするのは curl が入っているためで、default が既に
+# 依存しているので追加のコストはない
+FROM build AS wild-dist
+
+# depName=wild-linker/wild datasource=github-releases
+ARG WILD_VERSION="0.10.0"
+ARG TARGETPLATFORM
+
+RUN set -eux; \
+    case "${TARGETPLATFORM}" in \
+      linux/amd64) arch=x86_64 ;; \
+      linux/arm64) arch=aarch64 ;; \
+      # bake の WILD_PLATFORMS で絞っているので通常ここには来ない
+      *) echo "wild does not support ${TARGETPLATFORM}" >&2; exit 1 ;; \
+    esac; \
+    name="wild-linker-${WILD_VERSION}-${arch}-unknown-linux-gnu"; \
+    # --retry だけでは timeout と一部の HTTP コードしか再試行されず、
+    # 実際に出た接続リセット（exit 35）は対象外なので --retry-all-errors。
+    # このフラグは pipe 先だと部分転送が重複しうるため、ファイルに落とす
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors --max-time 180 \
+      -o /tmp/wild.tar.gz \
+      "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz"; \
+    # 展開は捨てるステージの /tmp だが、アーカイブ側の owner を持ち込まない
+    tar xzf /tmp/wild.tar.gz --no-same-owner -C /tmp; \
+    # 最終イメージに置く形をそのまま /out に作り、COPY 1 回で済ませる
+    install -Dm755 "/tmp/${name}/wild" /out/usr/local/bin/wild; \
+    # clang の -fuse-ld=wild は ld.wild を探す
+    ln -s wild /out/usr/local/bin/ld.wild; \
+    # gcc の -B<dir> 用。apt の mold が /usr/libexec/mold/ld を置くのと同じ形。
+    # bookworm(gcc 12) と trixie(gcc 14) はどちらも -fuse-ld=wild を知らない
+    # （GCC 16.1 以降の機能）ので、この経路が既定の gcc で使える手になる
+    mkdir -p /out/usr/local/libexec/wild; \
+    ln -s ../../bin/wild /out/usr/local/libexec/wild/ld
+
 # -mold タグ用。mold を入れるだけで、cargo が使う設定は入れない
 FROM default AS mold
 RUN apt-get update \
   && apt-get install --no-install-recommends -y mold \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+# -wild タグ用。mold と同じく、置くだけで cargo の設定は入れない
+FROM default AS wild
+COPY --from=wild-dist /out/ /
 
 # 最後のステージが --target なしのビルド対象になる。
 # mold を末尾に置くと素の `docker build .` が mold 版になってしまうため、

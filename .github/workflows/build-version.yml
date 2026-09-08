@@ -38,6 +38,9 @@ jobs:
           | ($all | group_by(major) | map(max_by(vkey))) as $major_latest
           | [ .target | to_entries[]
               | select(.value.args.RUST_VERSION == $v)
+              # 最終ステージ名がそのまま variant になる（default は素のイメージ）
+              | (if (.value.target // "default") == "default" then ""
+                 else "-" + .value.target end) as $variant
               | { target: .key,
                   minor: ($v | minor),
                   major: ($v | major),
@@ -45,9 +48,8 @@ jobs:
                   is_minor_latest: (($minor_latest | index($v)) != null),
                   is_major_latest: (($major_latest | index($v)) != null),
                   is_default_base: (.value.args.IS_DEFAULT_BASE == "true"),
-                  variant: (if .value.target == "mold" then "-mold" else "" end),
-                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-"))
-                           + (if .value.target == "mold" then "-mold" else "" end)) } ]
+                  variant: $variant,
+                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-")) + $variant) } ]
         ')" >> "${GITHUB_OUTPUT}"
 
   build-push:
@@ -80,8 +82,8 @@ jobs:
         stage=$(jq -r '.target."${{ matrix.target }}".target // "default"' <<< "${printed}")
 
         description="Prebuilt rust:${base_tag} image with cargo-chef for faster Docker layer caching"
-        if [ "${stage}" = "mold" ]; then
-          description="${description}, plus the mold linker"
+        if [ "${stage}" != "default" ]; then
+          description="${description}, plus the ${stage} linker"
         fi
         {
           echo "description=${description}"
@@ -203,8 +205,10 @@ jobs:
             --set "*.tags=cargo-chef-test:${{ matrix.target }}" \
             --load
           docker run --rm "cargo-chef-test:${{ matrix.target }}" cargo chef --version
-          if [ "${{ steps.bake_meta.outputs.stage }}" = "mold" ]; then
-            docker run --rm "cargo-chef-test:${{ matrix.target }}" mold --version
+          # variant のステージ名は入れた linker の名前でもある
+          if [ "${{ steps.bake_meta.outputs.stage }}" != "default" ]; then
+            docker run --rm "cargo-chef-test:${{ matrix.target }}" \
+              "${{ steps.bake_meta.outputs.stage }}" --version
           fi
           echo "::endgroup::"
         done
@@ -236,9 +240,9 @@ jobs:
       id: verify
       if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       run: |
-        # 公式イメージに cargo-chef の COPY が 1 層、mold ではさらに apt の 1 層乗る
+        # 公式イメージに cargo-chef の COPY が 1 層、variant ではその上にもう 1 層乗る
         expect_extra=1
-        if [ "${{ steps.bake_meta.outputs.stage }}" = "mold" ]; then
+        if [ "${{ steps.bake_meta.outputs.stage }}" != "default" ]; then
           expect_extra=2
         fi
 
