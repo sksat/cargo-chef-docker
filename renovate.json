@@ -24,8 +24,8 @@
         "channel\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
       "depNameTemplate": "rust",
-      "packageNameTemplate": "rust-lang/rust",
-      "datasourceTemplate": "github-releases"
+      "packageNameTemplate": "rust",
+      "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
