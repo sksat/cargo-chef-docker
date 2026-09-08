@@ -72,7 +72,11 @@ jobs:
     # 各 build-push でも同じ検証をしているが、表のためだけに artifact を
     # 経由すると、そのやり取り自体が壊れたときに表が空になるだけで気づけない。
     # ここは registry から読み直す。読めなかった target は表で — になり、
-    # 1 件も読めなかったのに成功したビルドがある場合は renderer が落ちる
+    # 1 件も読めなかったのに成功したビルドがある場合は renderer が落ちる。
+    #
+    # 読むのは sha 付きのタグ。バージョンのタグはビルドが失敗しても前の run
+    # のイメージを指すので、失敗したビルドの行に古いイメージの検証結果と
+    # サイズが並んでしまう。表示名は --label でバージョンのタグに戻す
     - name: Collect the image facts
       if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       run: |
@@ -91,8 +95,9 @@ jobs:
               # 不一致はゲート側（build-push）が既に落としている。ここでは
               # 表に出すため、読めなくても次へ進む
               .github/scripts/verify-base-layers.py \
-                "ghcr.io/${{ github.repository }}:${version}-${suffix}" \
+                "ghcr.io/${{ github.repository }}:sha-${GITHUB_SHA:0:7}-${version}-${suffix}" \
                 "${base_tag}" --expect-extra 1 \
+                --label "${version}-${suffix}" \
                 --json "image-facts/${version}-${suffix}.json" || true
               echo "::endgroup::"
             done
