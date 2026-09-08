@@ -13,11 +13,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
 
 jobs:
-  rust_version:
+  prepare:
     runs-on: ubuntu-latest
 
     outputs:
       rust_version: ${{ steps.rust_ver.outputs.rust_version }}
+      base_imgs: ${{ steps.base_imgs.outputs.base_imgs }}
 
     steps:
     - uses: actions/checkout@v5.1.0
@@ -27,13 +28,20 @@ jobs:
         echo "rust_version=$(awk -F'[ ="]+' '$1 == "channel" { print $2 }' rust-toolchain)" >> "${GITHUB_OUTPUT}"
         echo "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
 
+    - name: Get base image list from docker-bake.hcl
+      id: base_imgs
+      run: |
+        # docker-bake.hcl を base_img 一覧の単一のソースにする。
+        # bake --print は daemon 不要で、buildx は runner に同梱されている
+        echo "base_imgs=$(docker buildx bake --print 2>/dev/null | jq -c '.group.default.targets')" >> "${GITHUB_OUTPUT}"
+
   build_and_push:
     name: Build and Push
-    needs: rust_version
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        base_img: [slim, trixie, slim-trixie, bookworm, slim-bookworm]
+        base_img: ${{ fromJson(needs.prepare.outputs.base_imgs) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -48,12 +56,12 @@ jobs:
           sksat/${{ github.event.repository.name }},enable=true
         flavor: |
           latest=auto
-          suffix=-${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }},onlatest=false
+          suffix=-${{ needs.prepare.outputs.rust_version }}-${{ matrix.base_img }},onlatest=false
           suffix=-${{ matrix.base_img }},onlatest=true
         tags: |
           type=sha
           type=ref,event=pr
-          type=raw,value=${{ needs.rust_version.outputs.rust_version }},enable={{is_default_branch}}
+          type=raw,value=${{ needs.prepare.outputs.rust_version }},enable={{is_default_branch}}
 
     - name: Use mirror.gcr.io as a Docker Hub mirror
       run: |
@@ -96,30 +104,35 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build & Push container image
-      uses: docker/build-push-action@v7.3.0
+      uses: docker/bake-action@v7.3.0
+      env:
+        RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
+        # 参照先は docker-bake.hcl の CACHE_REF に集約されている
+        CACHE_TO: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'registry' || '' }}
       with:
-        context: .
-        platforms: linux/amd64,linux/arm64,linux/386
-        build-args: |
-          BASE_TAG=${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        annotations: ${{ steps.meta.outputs.annotations }}
+        targets: ${{ matrix.base_img }}
+        files: |
+          ./docker-bake.hcl
+          cwd://${{ steps.meta.outputs.bake-file }}
         push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-        cache-from: type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-${{ matrix.base_img }}
-        cache-to: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-{0},mode=max', matrix.base_img) || '' }}
 
     - name: Test image
+      env:
+        RUST_VERSION: ${{ needs.prepare.outputs.rust_version }}
       run: |
-        # multi-platform ビルドは --load できないため、platform ごとに単一 platform で load する。
-        # 直前のビルドと同じ内容なので buildkit のローカルキャッシュにヒットする
-        for platform in linux/amd64 linux/arm64 linux/386; do
+        # platform は docker-bake.hcl の target 定義から読む。ハードコードすると
+        # target ごとに platform を変えたときにテスト対象がずれる
+        platforms=$(docker buildx bake "${{ matrix.base_img }}" --print 2>/dev/null \
+          | jq -r '.target."${{ matrix.base_img }}".platforms[]')
+        echo "platforms: ${platforms}"
+
+        # multi-platform ビルドは --load できないため、platform ごとに単一 platform で load する
+        for platform in ${platforms}; do
           echo "::group::${platform}"
-          docker buildx build \
-            --platform "${platform}" \
-            --build-arg "BASE_TAG=${{ needs.rust_version.outputs.rust_version }}-${{ matrix.base_img }}" \
-            --cache-from "type=registry,ref=ghcr.io/sksat/cargo-chef-docker:buildcache-${{ matrix.base_img }}" \
-            --load -t "cargo-chef-test:${{ matrix.base_img }}" .
+          docker buildx bake "${{ matrix.base_img }}" \
+            --set "*.platform=${platform}" \
+            --set "*.tags=cargo-chef-test:${{ matrix.base_img }}" \
+            --load
           docker run --rm "cargo-chef-test:${{ matrix.base_img }}" cargo chef --version
           echo "::endgroup::"
         done

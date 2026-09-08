@@ -2,16 +2,22 @@
   "extends": [
     "config:base"
   ],
-  "additionalReviewers": ["sksat"],
+  "additionalReviewers": [
+    "sksat"
+  ],
   "packageRules": [
     {
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "automerge": true
     }
   ],
   "regexManagers": [
     {
-      "fileMatch": ["^rust-toolchain(\\.toml)?$"],
+      "fileMatch": [
+        "^rust-toolchain(\\.toml)?$"
+      ],
       "matchStrings": [
         "channel\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
@@ -20,9 +26,20 @@
       "datasourceTemplate": "github-releases"
     },
     {
-      "fileMatch": ["^Dockerfile$"],
+      "fileMatch": [
+        "^Dockerfile$"
+      ],
       "matchStrings": [
         "# depName=(?<depName>.*?) datasource=(?<datasource>.*)\nARG .*_VERSION=\"(?<currentValue>.*)\""
+      ],
+      "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
+    },
+    {
+      "fileMatch": [
+        "^docker-bake\\.hcl$"
+      ],
+      "matchStrings": [
+        "# depName=(?<depName>.*?) datasource=(?<datasource>.*)\n\\s*default\\s*=\\s*\"(?<currentValue>.*)\""
       ],
       "versioningTemplate": "{{#if versioning}}{{versioning}}{{else}}semver{{/if}}"
     }
