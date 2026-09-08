@@ -14,13 +14,16 @@ concurrency:
 
 jobs:
   build:
-    # reusable workflow のジョブは呼び出し側の権限を上限にするため、
-    # ここで id-token を渡さないと attestation の署名ができない
+    # reusable workflow の chain では permission を上げられず、呼び出し側が
+    # 上限になる。呼ばれる側の全ジョブが要求するものをここで渡す
+    #   build-push: packages(ghcr へ push) / id-token, attestations(署名)
+    #   summary:    actions(ジョブの conclusion を API から読む)
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
+      actions: read
     uses: ./.github/workflows/build-variant.yml
     with:
       stage: default
