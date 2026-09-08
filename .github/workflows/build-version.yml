@@ -1,0 +1,198 @@
+name: build version
+
+on:
+  workflow_call:
+    inputs:
+      rust_version:
+        description: ビルドする rust のバージョン
+        required: true
+        type: string
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Build the job matrix for this rust version
+      id: targets
+      run: |
+        # target 名にはドットが使えず "1-91-0-bookworm" の形なので、
+        # タグに使う値は args から導出する。
+        # is_latest は一覧の並び順ではなく semver 比較で決める
+        echo "targets=$(docker buildx bake --print 2>/dev/null | jq -c --arg v '${{ inputs.rust_version }}' '
+          def vkey: split(".") | map(tonumber);
+          ([.target[].args.RUST_VERSION] | unique | max_by(vkey)) as $latest
+          | [ .target | to_entries[]
+              | select(.value.args.RUST_VERSION == $v)
+              | { target: .key,
+                  is_latest: ($v == $latest),
+                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-"))
+                           + (if .value.target == "mold" then "-mold" else "" end)) } ]
+        ')" >> "${GITHUB_OUTPUT}"
+
+  build-push:
+    name: ${{ matrix.suffix }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.targets) }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Build the job matrix from docker-bake.hcl
+      id: targets
+      run: |
+        # docker-bake.hcl を単一のソースにする。bake --print は daemon 不要で、
+        # buildx は runner に同梱されている。
+        # rust-toolchain は rust のリリース記録として残しており、ここでは読まない
+        # （ビルドに使うのはイメージが存在するバージョンで、別物）
+        #
+        # target 名にはドットが使えず "1-98-0-bookworm" の形なので、
+        # タグに使う値は args から導出する
+        # is_latest は一覧の並び順ではなく semver 比較で決める
+        echo "targets=$(docker buildx bake --print 2>/dev/null | jq -c '
+          def vkey: split(".") | map(tonumber);
+          ([.target[].args.RUST_VERSION] | unique | max_by(vkey)) as $latest
+          | [ .target | to_entries[]
+              | .value.args.RUST_VERSION as $v
+              | { target: .key,
+                  rust_version: $v,
+                  is_latest: ($v == $latest),
+                  suffix: ((.value.args.BASE_TAG | ltrimstr($v + "-"))
+                           + (if .value.target == "mold" then "-mold" else "" end)) } ]
+        ')" >> "${GITHUB_OUTPUT}"
+
+  build_and_push:
+    # matrix の値が全部連結されると読みにくいので、publish するタグに合わせる
+    name: Build and Push (${{ inputs.rust_version }}-${{ matrix.suffix }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.targets) }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Read image metadata from docker-bake.hcl
+      id: bake_meta
+      run: |
+        # ベースイメージのタグと mold の有無はどちらも bake 側の定義なので、
+        # workflow で組み立て直さず解決済みの値を読む
+        printed=$(docker buildx bake "${{ matrix.target }}" --print 2>/dev/null)
+        base_tag=$(jq -r '.target."${{ matrix.target }}".args.BASE_TAG' <<< "${printed}")
+        stage=$(jq -r '.target."${{ matrix.target }}".target // "default"' <<< "${printed}")
+
+        description="Prebuilt rust:${base_tag} image with cargo-chef for faster Docker layer caching"
+        if [ "${stage}" = "mold" ]; then
+          description="${description}, plus the mold linker"
+        fi
+        echo "description=${description}" >> "${GITHUB_OUTPUT}"
+        echo "stage=${stage}" >> "${GITHUB_OUTPUT}"
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+      env:
+        # GitHub Packages は multi-arch イメージの description を index の
+        # annotations から読む。デフォルトの manifest だけでは表示されない
+        DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
+      with:
+        images: |
+          ghcr.io/${{ github.repository }},enable=true
+          sksat/${{ github.event.repository.name }},enable=true
+        # sha / pr タグにも rust_version を入れる。入れないとバージョンが
+        # 複数あるとき同じタグに別イメージを push してしまう
+        tags: |
+          type=raw,value=${{ inputs.rust_version }},suffix=-${{ matrix.suffix }},enable={{is_default_branch}}
+          type=raw,value=latest,suffix=-${{ matrix.suffix }},enable=${{ matrix.is_latest && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          type=sha,suffix=-${{ inputs.rust_version }}-${{ matrix.suffix }}
+          type=ref,event=pr,suffix=-${{ inputs.rust_version }}-${{ matrix.suffix }}
+        # 既定ではリポジトリの description が入る。labels と annotations は
+        # それぞれ別の input から組まれるため両方に指定する
+        labels: |
+          org.opencontainers.image.description=${{ steps.bake_meta.outputs.description }}
+        annotations: |
+          org.opencontainers.image.description=${{ steps.bake_meta.outputs.description }}
+
+    - name: Use mirror.gcr.io as a Docker Hub mirror
+      run: |
+        # host の docker daemon 経由の pull（tonistiigi/binfmt, moby/buildkit）
+        sudo mkdir -p /etc/docker
+        tmp=$(mktemp)
+        if [ -s /etc/docker/daemon.json ]; then
+          jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' /etc/docker/daemon.json > "${tmp}"
+        else
+          echo '{"registry-mirrors": ["https://mirror.gcr.io"]}' > "${tmp}"
+        fi
+        sudo cp "${tmp}" /etc/docker/daemon.json
+        sudo systemctl restart docker
+        docker info --format 'daemon registry mirrors: {{json .RegistryConfig.Mirrors}}'
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      with:
+        # buildkitd 経由の pull（Dockerfile の FROM が引く rust イメージ）
+        buildkitd-config-inline: |
+          [registry."docker.io"]
+            mirrors = ["mirror.gcr.io"]
+
+    - name: Login to ghcr.io
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Login to DockerHub
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      with:
+        username: sksat
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build & Push container image
+      uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
+      env:
+        # 参照先は docker-bake.hcl の CACHE_REF に集約されている
+        CACHE_TO: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'registry' || '' }}
+      with:
+        targets: ${{ matrix.target }}
+        files: |
+          ./docker-bake.hcl
+          cwd://${{ steps.meta.outputs.bake-file }}
+          cwd://${{ steps.meta.outputs.bake-file-annotations }}
+        push: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+    - name: Test image
+      run: |
+        # platform は docker-bake.hcl の target 定義から読む。ハードコードすると
+        # target ごとに platform を変えたときにテスト対象がずれる
+        platforms=$(docker buildx bake "${{ matrix.target }}" --print 2>/dev/null \
+          | jq -r '.target."${{ matrix.target }}".platforms[]')
+        echo "platforms: ${platforms}"
+
+        # multi-platform ビルドは --load できないため、platform ごとに単一 platform で load する
+        for platform in ${platforms}; do
+          echo "::group::${platform}"
+          docker buildx bake "${{ matrix.target }}" \
+            --set "*.platform=${platform}" \
+            --set "*.tags=cargo-chef-test:${{ matrix.target }}" \
+            --load
+          docker run --rm "cargo-chef-test:${{ matrix.target }}" cargo chef --version
+          if [ "${{ steps.bake_meta.outputs.stage }}" = "mold" ]; then
+            docker run --rm "cargo-chef-test:${{ matrix.target }}" mold --version
+          fi
+          echo "::endgroup::"
+        done
