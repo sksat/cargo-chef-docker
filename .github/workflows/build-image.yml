@@ -94,8 +94,14 @@ jobs:
       run: |
         docker image ls
 
+    - name: Set up QEMU
+      if: ${{ matrix.arch == 'arm64' }}
+      uses: docker/setup-qemu-action@v4.3.0
+      with:
+        platforms: arm64
+
     - name: Test image
-      if: ${{ matrix.arch == 'amd64' }}
+      if: ${{ matrix.arch != 'i686' }}
       run: |
         docker run --rm ghcr.io/sksat/cargo-chef-docker:${{ needs.rust_version.outputs.rust_version  }}-${{ matrix.base_img }}-${{ steps.meta.outputs.version }} cargo chef --version
 
