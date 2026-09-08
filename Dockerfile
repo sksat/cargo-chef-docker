@@ -61,9 +61,10 @@ RUN set -eux; \
       *) echo "wild does not support ${TARGETPLATFORM}" >&2; exit 1 ;; \
     esac; \
     name="wild-linker-${WILD_VERSION}-${arch}-unknown-linux-gnu"; \
-    # tar に直接パイプすると curl の --retry が途中から再送してストリームを
-    # 壊すため、いったんファイルに落とす
-    curl -fsSL --retry 3 --retry-delay 2 --max-time 180 \
+    # --retry だけでは timeout と一部の HTTP コードしか再試行されず、
+    # 実際に出た接続リセット（exit 35）は対象外なので --retry-all-errors。
+    # このフラグは pipe 先だと部分転送が重複しうるため、ファイルに落とす
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors --max-time 180 \
       -o /tmp/wild.tar.gz \
       "https://github.com/wild-linker/wild/releases/download/${WILD_VERSION}/${name}.tar.gz"; \
     # 展開は捨てるステージの /tmp だが、アーカイブ側の owner を持ち込まない
