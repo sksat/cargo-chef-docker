@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  record:
-    name: record
+  # 他の workflow に合わせて job id をそのまま表示名にする
+  rust-release:
     runs-on: ubuntu-latest
 
     permissions:
