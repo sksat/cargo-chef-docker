@@ -45,6 +45,16 @@ variable "BASE_IMGS" {
   default = ["slim", "trixie", "slim-trixie", "bookworm", "slim-bookworm"]
 }
 
+variable "PLATFORMS" {
+  default = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm/v7"]
+}
+
+// wild は upstream が x86-64 / ARM64 / RISC-V 向けしか配布しておらず、
+// 386 と armv7 は対応対象外。variant ごとに platform を変える
+variable "WILD_PLATFORMS" {
+  default = ["linux/amd64", "linux/arm64"]
+}
+
 // CI では metadata-action の bake ファイルに上書きされる。
 // 手元でビルドするときはこのデフォルトが使われる
 target "docker-metadata-action" {
@@ -55,7 +65,7 @@ target "base" {
   inherits   = ["docker-metadata-action"]
   context    = "."
   dockerfile = "Dockerfile"
-  platforms  = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm/v7"]
+  platforms  = PLATFORMS
 }
 
 target "image" {
@@ -67,11 +77,13 @@ target "image" {
   matrix = {
     rust_version = RUST_VERSIONS
     base_img     = BASE_IMGS
-    variant      = ["", "-mold"]
+    variant      = ["", "-mold", "-wild"]
   }
 
   inherits   = ["base"]
-  target     = variant == "" ? "default" : "mold"
+  // variant はそのまま最終ステージ名にする（"-mold" -> "mold"）
+  target     = variant == "" ? "default" : trimprefix(variant, "-")
+  platforms  = variant == "-wild" ? WILD_PLATFORMS : PLATFORMS
   args = {
     BASE_TAG     = "${rust_version}-${base_img}"
     RUST_VERSION = rust_version
@@ -84,7 +96,7 @@ target "image" {
 
 group "default" {
   targets = [
-    for t in setproduct(RUST_VERSIONS, BASE_IMGS, ["", "-mold"]) :
+    for t in setproduct(RUST_VERSIONS, BASE_IMGS, ["", "-mold", "-wild"]) :
     "${replace(t[0], ".", "-")}-${t[1]}${t[2]}"
   ]
 }

@@ -50,9 +50,9 @@ Same shapes as the [official rust image](https://hub.docker.com/_/rust):
 name — `1.91.0`, `1.91`, `1`, `latest` — matching where upstream puts
 them.
 
-Every shape has a [`-mold`](#mold) counterpart: `1.91.0-bookworm-mold`,
-`bookworm-mold`, and for the default base `1.91.0-mold`, `1.91-mold`,
-`1-mold`, `latest-mold`.
+Every shape has [`-mold`](#mold) and [`-wild`](#wild) counterparts:
+`1.91.0-bookworm-mold`, `bookworm-wild`, and for the default base
+`1.91.0-mold`, `1.91-wild`, `1-mold`, `latest-wild`.
 
 `<base>` is one of `slim`, `trixie`, `slim-trixie`, `bookworm`, `slim-bookworm`,
 matching the [official rust image](https://hub.docker.com/_/rust) variant. Note
@@ -72,6 +72,9 @@ Every tag is a multi-arch index covering:
 
 `docker pull` picks the right one, so `docker pull …:latest-bookworm` on an Apple
 Silicon Mac gets the arm64 image.
+
+`-wild` tags cover `linux/amd64` and `linux/arm64` only — upstream does not build
+wild for `linux/386` or `linux/arm/v7`.
 
 ## Provenance
 
@@ -93,7 +96,7 @@ gh attestation verify oci://ghcr.io/sksat/cargo-chef-docker:latest-bookworm \
 
 The layers are checked against the official image on every build: the published
 layer list must start with the layers of `rust:<tag>`, and the only additions may
-be cargo-chef (plus mold for `-mold`). The result and the image sizes for every
+be cargo-chef (plus the linker for `-mold` and `-wild`). The result and the image sizes for every
 tag are in the job summary of each
 [build run](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml).
 
@@ -108,6 +111,26 @@ ENV RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 
 The version comes from the base image's Debian release, so bookworm gives an
 older mold than trixie.
+
+## wild
+
+The `-wild` tags add the [wild](https://github.com/wild-linker/wild) linker,
+taken from upstream's release build for glibc. **Nothing is configured for
+cargo** — the binary is there and you opt in:
+
+```dockerfile
+ENV RUSTFLAGS="-C link-arg=-B/usr/local/libexec/wild"
+```
+
+That path holds an `ld` pointing at wild, which is what `gcc -B` looks for. It is
+the route that works with the image's own gcc: `-fuse-ld=wild` needs GCC 16.1 or
+later, and bookworm ships 12 while trixie ships 14. With clang you can instead
+use `--ld-path=wild`, or `-fuse-ld=wild` via the `ld.wild` symlink next to the
+binary.
+
+Unlike mold, the version does not come from Debian — wild is not packaged there,
+so the binary comes from the upstream release and is pinned in the
+[`Dockerfile`](Dockerfile).
 
 ## Building locally
 
