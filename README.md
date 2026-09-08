@@ -5,5 +5,5 @@
 
 ## Usage
 ```sh
-$ docker pull ghcr.io/sksat/cargo-chef-docker:1.70.0-bullseye
+$ docker pull ghcr.io/sksat/cargo-chef-docker:1.90.0-bookworm
 ```
