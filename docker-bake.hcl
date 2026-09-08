@@ -42,15 +42,21 @@ target "base" {
 }
 
 target "image" {
-  name   = base_img
-  matrix = { base_img = BASE_IMGS }
+  // variant "" が素のイメージ、"-mold" が mold 入り。
+  // target 名がそのままタグの suffix になる（1.90.0-bookworm-mold など）
+  name   = "${base_img}${variant}"
+  matrix = {
+    base_img = BASE_IMGS
+    variant  = ["", "-mold"]
+  }
 
   inherits   = ["base"]
+  target     = variant == "" ? "default" : "mold"
   args       = { BASE_TAG = "${RUST_VERSION}-${base_img}" }
-  cache-from = ["type=registry,ref=${CACHE_REF}:buildcache-${base_img}"]
-  cache-to   = CACHE_TO == "" ? [] : ["type=registry,ref=${CACHE_REF}:buildcache-${base_img},mode=max"]
+  cache-from = ["type=registry,ref=${CACHE_REF}:buildcache-${base_img}${variant}"]
+  cache-to   = CACHE_TO == "" ? [] : ["type=registry,ref=${CACHE_REF}:buildcache-${base_img}${variant},mode=max"]
 }
 
 group "default" {
-  targets = BASE_IMGS
+  targets = concat(BASE_IMGS, [for b in BASE_IMGS : "${b}-mold"])
 }
