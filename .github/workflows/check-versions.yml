@@ -1,0 +1,47 @@
+name: check versions
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  # 他の workflow に合わせて job id をそのまま表示名にする
+  rust-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Compare the release record with what is built
+      run: |
+        # RUST_LATEST_RELEASE は使われない変数なので bake --print には出ない。
+        # renovate も同じくテキストとして読んでいる
+        latest=$(sed -n '/^variable "RUST_LATEST_RELEASE"/,/^}/p' docker-bake.hcl \
+          | sed -n 's/^ *default = "\(.*\)"/\1/p')
+        newest=$(docker buildx bake --print 2>/dev/null \
+          | jq -r '[.target[].args.RUST_VERSION] | unique
+                   | max_by(split(".") | map(tonumber))')
+
+        echo "追従できている記録: ${latest}"
+        echo "ビルドしている最新: ${newest}"
+
+        if [ -z "${latest}" ] || [ -z "${newest}" ]; then
+          echo "::error::バージョンを読み取れなかった"
+          exit 1
+        fi
+
+        # ズレは両方向にありうる
+        if [ "${latest}" = "${newest}" ]; then
+          exit 0
+        fi
+        if [ "$(printf '%s\n%s\n' "${latest}" "${newest}" | sort -V | tail -1)" = "${latest}" ]; then
+          echo "::error::rust ${latest} が出ているのにビルドは ${newest} まで。rust:${latest} のイメージがあれば RUST_VERSIONS に足す。無ければイメージが出るのを待つ"
+        else
+          echo "::error::${newest} をビルドしているのに記録は ${latest} のまま。RUST_LATEST_RELEASE を上げる"
+        fi
+        exit 1
