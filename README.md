@@ -96,8 +96,8 @@ gh attestation verify oci://ghcr.io/sksat/cargo-chef-docker:latest-bookworm \
 ```
 
 The layers are checked against the official image on every build: the published
-layer list must start with the layers of `rust:<tag>`, and the only additions may
-be cargo-chef (plus the linker for `-mold` and `-wild`). The result and the image sizes for every
+layer list must start with the layers of `rust:<tag>`, with exactly one layer
+added on top — cargo-chef, and the linker for `-mold` and `-wild`. The result and the image sizes for every
 tag are in the job summary of each
 [build run](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-image.yml).
 
