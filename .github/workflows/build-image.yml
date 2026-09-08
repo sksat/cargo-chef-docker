@@ -134,7 +134,7 @@ jobs:
     steps:
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@v5.8.0
+      uses: docker/metadata-action@v5.10.0
       with:
         images: |
           ghcr.io/${{ github.repository }},enable=true
