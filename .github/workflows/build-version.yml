@@ -59,7 +59,9 @@ jobs:
         ')" >> "${GITHUB_OUTPUT}"
 
   build-push:
-    name: ${{ matrix.suffix }}
+    # Actions の UI は末尾のセグメントだけ見せることがあり、suffix だけだと
+    # バージョンをまたいで bookworm が並ぶ。ビルドしているタグをそのまま出す
+    name: ${{ inputs.rust_version }}-${{ matrix.suffix }}
     needs: prepare
     strategy:
       fail-fast: false
