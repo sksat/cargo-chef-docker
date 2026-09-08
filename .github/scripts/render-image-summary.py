@@ -123,7 +123,7 @@ def verification_cells(facts, plats):
         counts = {(p["base_layers"], p["extra_layers"]) for p in facts["platforms"]}
         if len(counts) == 1:
             base_layers, extra = counts.pop()
-            match = f"✅ base {base_layers} + {extra}"
+            match = f"✅ 公式 {base_layers} 層 + {extra} 層"
         else:
             match = "✅"
 

@@ -15,6 +15,7 @@ usage: verify-base-layers.py <image-ref> <base-tag> [--expect-extra N] [--json F
 import argparse
 import json
 import sys
+import urllib.error
 import urllib.request
 
 IDX = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
@@ -23,8 +24,10 @@ MAN = "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distri
 BASE_REPO = "library/rust"
 # ベースはビルドと同じ経路で読む。buildkitd も mirror.gcr.io 経由で pull しており、
 # ミラーは Docker Hub と同一の index を返す。直接叩くと pull 上限（未認証で
-# IP あたり 100/6h）を検証だけで消費してしまう
-DEFAULT_BASE_HOST = "mirror.gcr.io"
+# IP あたり 100/6h）を検証だけで消費してしまう。
+# ミラーは pull-through cache で SLA もないので、buildkitd と同じく Docker Hub に
+# フォールバックする。ビルドが通ったのに検証だけ落ちるのを避ける
+BASE_HOSTS = ["mirror.gcr.io", "registry-1.docker.io"]
 
 
 def get_json(url, token=None, accept=None):
@@ -61,21 +64,42 @@ def platform_key(p):
     return p["os"] + "/" + p["architecture"] + ("/" + variant if variant else "")
 
 
-def platforms(host, repo, ref, token):
-    """index の platform → manifest digest。unknown/unknown（attestation）は除く。"""
-    idx = get_json(f"https://{host}/v2/{repo}/manifests/{ref}", token, IDX)
-    out = {}
-    for m in idx.get("manifests", []):
-        p = m["platform"]
-        if p["os"] == "unknown":
-            continue
-        out[platform_key(p)] = m["digest"]
-    return out
+class Registry:
+    """1 つの repository を、指定した host の順に読む。前の host が落ちたら次を試す。"""
 
+    def __init__(self, repo, hosts):
+        self.repo = repo
+        self.hosts = hosts
+        self._tokens = {}
 
-def layers(host, repo, digest, token):
-    man = get_json(f"https://{host}/v2/{repo}/manifests/{digest}", token, MAN)
-    return [(l["digest"], l.get("size", 0)) for l in man["layers"]]
+    def _manifest(self, ref, accept):
+        errors = []
+        for host in self.hosts:
+            try:
+                if host not in self._tokens:
+                    self._tokens[host] = pull_token(host, self.repo)
+                return get_json(
+                    f"https://{host}/v2/{self.repo}/manifests/{ref}", self._tokens[host], accept
+                )
+            except urllib.error.URLError as e:
+                errors.append(f"{host}: {e}")
+                print(f"::warning::{host} から {self.repo}:{ref} を読めなかった（{e}）")
+        raise SystemExit(f"{self.repo}:{ref} を読めなかった（{'、'.join(errors)}）")
+
+    def platforms(self, ref):
+        """index の platform → manifest digest。unknown/unknown（attestation）は除く。"""
+        idx = self._manifest(ref, IDX)
+        out = {}
+        for m in idx.get("manifests", []):
+            p = m["platform"]
+            if p["os"] == "unknown":
+                continue
+            out[platform_key(p)] = m["digest"]
+        return out
+
+    def layers(self, digest):
+        man = self._manifest(digest, MAN)
+        return [(l["digest"], l.get("size", 0)) for l in man["layers"]]
 
 
 def main():
@@ -84,19 +108,15 @@ def main():
     ap.add_argument("base_tag", help="ベースの公式 rust タグ（例 1.91.0-bookworm）")
     ap.add_argument("--expect-extra", type=int, help="公式より増えているべきレイヤ数")
     ap.add_argument("--json", dest="json_path", help="結果の JSON を書き出す先")
-    ap.add_argument(
-        "--base-registry", default=DEFAULT_BASE_HOST, help=f"ベースを読む registry（既定 {DEFAULT_BASE_HOST}）"
-    )
     args = ap.parse_args()
 
     host, rest = args.image.split("/", 1)
     repo, ref = rest.rsplit(":", 1)
-    base_host = args.base_registry
-    ours_token = pull_token(host, repo)
-    base_token = pull_token(base_host, BASE_REPO)
+    ours_reg = Registry(repo, [host])
+    base_reg = Registry(BASE_REPO, BASE_HOSTS)
 
-    ours = platforms(host, repo, ref, ours_token)
-    base = platforms(base_host, BASE_REPO, args.base_tag, base_token)
+    ours = ours_reg.platforms(ref)
+    base = base_reg.platforms(args.base_tag)
 
     results = []
     for plat, digest in sorted(ours.items()):
@@ -105,8 +125,8 @@ def main():
             r["status"] = f"ベースに {plat} がない"
             results.append(r)
             continue
-        ls = layers(host, repo, digest, ours_token)
-        bs = layers(base_host, BASE_REPO, base[plat], base_token)
+        ls = ours_reg.layers(digest)
+        bs = base_reg.layers(base[plat])
         r["base_layers"] = len(bs)
         r["extra_layers"] = len(ls) - len(bs)
         r["total_size"] = sum(sz for _, sz in ls)
