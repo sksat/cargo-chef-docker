@@ -69,12 +69,38 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Download the image facts
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-      with:
-        pattern: image-facts-*
-        path: image-facts
-        merge-multiple: true
+    # 各 build-push でも同じ検証をしているが、表のためだけに artifact を
+    # 経由すると、そのやり取り自体が壊れたときに表が空になるだけで気づけない。
+    # ここは registry から読み直す。読めなかった target は表で — になり、
+    # 1 件も読めなかったのに成功したビルドがある場合は renderer が落ちる。
+    #
+    # 読むのは sha 付きのタグ。バージョンのタグはビルドが失敗しても前の run
+    # のイメージを指すので、失敗したビルドの行に古いイメージの検証結果と
+    # サイズが並んでしまう。表示名は --label でバージョンのタグに戻す
+    - name: Collect the image facts
+      if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      run: |
+        mkdir -p image-facts
+        docker buildx bake --print 2>/dev/null \
+          | jq -r --arg stage '${{ inputs.stage }}' '
+              .target | to_entries[]
+              | select((.value.target // "default") == $stage)
+              | [.value.args.RUST_VERSION, .value.args.BASE_TAG] | @tsv' \
+          | while IFS=$'\t' read -r version base_tag; do
+              suffix="${base_tag#"${version}-"}"
+              if [ '${{ inputs.stage }}' != default ]; then
+                suffix="${suffix}-${{ inputs.stage }}"
+              fi
+              echo "::group::${version}-${suffix}"
+              # 不一致はゲート側（build-push）が既に落としている。ここでは
+              # 表に出すため、読めなくても次へ進む
+              .github/scripts/verify-base-layers.py \
+                "ghcr.io/${{ github.repository }}:sha-${GITHUB_SHA:0:7}-${version}-${suffix}" \
+                "${base_tag}" --expect-extra 1 \
+                --label "${version}-${suffix}" \
+                --json "image-facts/${version}-${suffix}.json" || true
+              echo "::endgroup::"
+            done
 
     - name: Render the image summary
       env:
@@ -86,5 +112,13 @@ jobs:
           --paginate --jq '.jobs[]' | jq -s '.' > jobs.json
 
         # summary ファイルは後から読めないので、ログにも同じものを残す
+        # push する run では facts が取れて当然なので、1 件も無いのに
+        # 成功したビルドがあるなら表の作り方が壊れている
+        expect_facts=""
+        if [ "${{ github.ref }}" = "refs/heads/${{ github.event.repository.default_branch }}" ]; then
+          expect_facts="--expect-facts"
+        fi
+
+        # summary ファイルは後から読めないので、ログにも同じものを残す
         .github/scripts/render-image-summary.py --jobs jobs.json --facts image-facts \
-          | tee -a "${GITHUB_STEP_SUMMARY}"
+          ${expect_facts} | tee -a "${GITHUB_STEP_SUMMARY}"

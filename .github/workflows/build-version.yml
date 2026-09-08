@@ -243,28 +243,15 @@ jobs:
           --repo "${{ github.repository }}"
 
     - name: Verify the layers against the official image
-      id: verify
       if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       run: |
         # どの variant も公式イメージに 1 層だけ乗る形にしている
         expect_extra=1
 
-        mkdir -p image-facts
         # push 済みの index を registry から読む。ローカルの load では
         # 非圧縮サイズしか取れず、platform ごとに load し直す必要もある
         .github/scripts/verify-base-layers.py \
           "ghcr.io/${{ github.repository }}:${{ inputs.rust_version }}-${{ matrix.suffix }}" \
           "${{ steps.bake_meta.outputs.base_tag }}" \
-          --expect-extra "${expect_extra}" \
-          --json "image-facts/${{ inputs.rust_version }}-${{ matrix.suffix }}.json"
+          --expect-extra "${expect_extra}"
 
-    # 一覧は run 全体で 1 枚にまとめたいので、ここでは事実だけ渡す。
-    # 検証が落ちても結果を表に出したいので always
-    - name: Upload the image facts
-      if: ${{ always() && steps.verify.outcome != 'skipped' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: image-facts-${{ inputs.rust_version }}-${{ matrix.suffix }}
-        path: image-facts/
-        if-no-files-found: ignore
-        retention-days: 1

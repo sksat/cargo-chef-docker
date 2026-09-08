@@ -108,6 +108,11 @@ def main():
     ap.add_argument("base_tag", help="ベースの公式 rust タグ（例 1.91.0-bookworm）")
     ap.add_argument("--expect-extra", type=int, help="公式より増えているべきレイヤ数")
     ap.add_argument("--json", dest="json_path", help="結果の JSON を書き出す先")
+    ap.add_argument(
+        "--label",
+        help="JSON に記録する表示上のタグ。run 固有の sha タグを読みつつ、"
+        "表にはバージョンのタグを出したいときに使う（既定は image のタグ）",
+    )
     args = ap.parse_args()
 
     host, rest = args.image.split("/", 1)
@@ -154,7 +159,7 @@ def main():
             json.dump(
                 {
                     "image": args.image,
-                    "tag": ref,
+                    "tag": args.label or ref,
                     "base": f"{BASE_REPO.split('/')[-1]}:{args.base_tag}",
                     "ok": ok,
                     "platforms": results,

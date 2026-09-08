@@ -41,6 +41,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", required=True, help="Actions API のジョブ一覧 JSON")
     ap.add_argument("--facts", help="verify-base-layers.py の JSON が入ったディレクトリ")
+    ap.add_argument(
+        "--expect-facts",
+        action="store_true",
+        help="facts が取れて当然の run で使う。成功したビルドがあるのに 1 件も無ければ失敗する",
+    )
     args = ap.parse_args()
 
     jobs = json.load(open(args.jobs))
@@ -112,6 +117,13 @@ def main():
             " so they are not shown for runs that do not push."
         )
     print("\n".join(out))
+
+    if args.expect_facts and not verified and any(r["conclusion"] == "success" for r in rows):
+        print(
+            "::error::publish した run なのに image facts が 1 件も無い。"
+            "表の作り方が壊れている可能性がある"
+        )
+        return 1
     return 0
 
 
