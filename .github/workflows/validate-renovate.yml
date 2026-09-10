@@ -1,10 +1,8 @@
 name: validate / renovate.json
 
+# actionlint と同じ理由で毎回動かす
 on:
   pull_request:
-    paths:
-      - 'renovate.json'
-      - '.github/workflows/validate-renovate.yml'
 
 jobs:
   validate-renovate:

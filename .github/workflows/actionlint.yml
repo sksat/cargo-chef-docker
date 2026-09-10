@@ -1,9 +1,10 @@
 name: actionlint
 
+# 軽量なので paths で絞らず毎回動かす。required status check にするには
+# 全 PR で結果が付く必要がある（絞ると該当ファイルを触らない PR が
+# 永久に pending になる）
 on:
   pull_request:
-    paths:
-      - '.github/workflows/**'
 
 jobs:
   actionlint:
