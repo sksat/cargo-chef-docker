@@ -93,6 +93,24 @@ jobs:
       targets: ${{ toJson(fromJson(needs.prepare.outputs.targets)[matrix.rust_version]) }}
     secrets: inherit
 
+  # required status check にする単一の判定。summary は if: always() なので
+  # ビルドが落ちても緑になり、ゲートにならない。名前に stage を入れて
+  # variant ごとに一意にする（3 つの workflow で同名だと required にできない）
+  gate:
+    name: gate ${{ inputs.stage }}
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+
+    permissions: {}
+
+    steps:
+    - name: Check the build result
+      run: |
+        # matrix ジョブの result はどれか落ちれば failure になる
+        echo "build: ${{ needs.build.result }}"
+        [ "${{ needs.build.result }}" = success ]
+
   # 各 build-push が上げた検証結果と、run 全体のジョブの成否をまとめて
   # job summary に出す。ビルドが落ちた run でこそ見たいので always
   summary:
