@@ -21,17 +21,18 @@
 // renovate がこれを上げると、RUST_VERSIONS が追いつくまで check versions が
 // 落ちる。つまり新しいリリースは renovate の PR が赤くなる形で出てくる。
 // RUST_VERSIONS は「公式イメージが存在する」バージョンなので、リリース直後は
-// イメージがまだ無くて追いつけないことがある（1.98.1 の時点で rust:1.98.1 は無い）。
+// イメージがまだ無くて追いつけないことがある。
 // 以前は rust-toolchain に置いていたが、あのファイル名は「このリポジトリの
 // ビルドに使うツールチェーン」を意味してしまう。ここには Rust のコードが無い
 # depName=rust packageName=rust-lang/rust datasource=github-releases
 variable "RUST_LATEST_RELEASE" {
-  default = "1.97.1"
+  default = "1.98.0"
 }
 
 variable "RUST_VERSIONS" {
   default = [
     # depName=rust packageName=rust datasource=docker
+    "1.98.0",
     "1.97.1",
     "1.97.0",
     "1.96.1",
