@@ -2,7 +2,7 @@
 
 ARG BASE_IMG=rust
 # depName=rust datasource=docker
-ARG RUST_VERSION="1.98.0"
+ARG RUST_VERSION="1.98.1"
 ARG BASE_TAG=${RUST_VERSION}
 # workflow が base なしタグの対象を判定するために bake が渡す。
 # ビルドでは参照しないが、宣言しないと未使用 build arg の警告が出る

@@ -26,12 +26,13 @@
 // ビルドに使うツールチェーン」を意味してしまう。ここには Rust のコードが無い
 # depName=rust packageName=rust-lang/rust datasource=github-releases
 variable "RUST_LATEST_RELEASE" {
-  default = "1.98.0"
+  default = "1.98.1"
 }
 
 variable "RUST_VERSIONS" {
   default = [
     # depName=rust packageName=rust datasource=docker
+    "1.98.1",
     "1.98.0",
     "1.97.1",
     "1.97.0",
