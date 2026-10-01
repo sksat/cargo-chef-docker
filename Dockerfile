@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.27.0
+# syntax=docker/dockerfile:1.27.1
 
 ARG BASE_IMG=rust
 # depName=rust datasource=docker
