@@ -5,8 +5,8 @@
 [![build container-wild](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml/badge.svg)](https://github.com/sksat/cargo-chef-docker/actions/workflows/build-wild.yml)
 [![license](https://img.shields.io/github/license/sksat/cargo-chef-docker)](LICENSE)
 [![docker pulls](https://img.shields.io/docker/pulls/sksat/cargo-chef-docker)](https://hub.docker.com/r/sksat/cargo-chef-docker)
-[![latest-bookworm](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest-bookworm?label=latest-bookworm)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
-[![latest-slim-bookworm](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest-slim-bookworm?label=latest-slim-bookworm)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
+[![latest](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest?label=latest)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
+[![latest-slim](https://img.shields.io/docker/image-size/sksat/cargo-chef-docker/latest-slim?label=latest-slim)](https://hub.docker.com/r/sksat/cargo-chef-docker/tags)
 
 Official [rust](https://hub.docker.com/_/rust) images with
 [cargo-chef](https://github.com/LukeMathWalker/cargo-chef) already installed, so
@@ -20,7 +20,7 @@ Published to both registries, same tags:
 ## Usage
 
 ```dockerfile
-FROM ghcr.io/sksat/cargo-chef-docker:latest-bookworm AS chef
+FROM ghcr.io/sksat/cargo-chef-docker:latest AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -41,20 +41,20 @@ Same shapes as the [official rust image](https://hub.docker.com/_/rust):
 
 | shape | example | notes |
 |---|---|---|
-| `<rust>-<base>` | `1.91.0-bookworm` | pinned rust version |
-| `<major.minor>-<base>` | `1.91-bookworm` | newest patch of that minor line |
-| `<major>-<base>` | `1-bookworm` | newest version of that major line |
-| `<base>` | `bookworm` | newest version built here |
-| `latest-<base>` | `latest-bookworm` | same as `<base>`, kept as an alias |
-| `sha-<sha>-<rust>-<base>` | `sha-40da647-1.91.0-bookworm` | a single commit of this repository |
+| `<rust>-<base>` | `1.91.0-trixie` | pinned rust version |
+| `<major.minor>-<base>` | `1.91-trixie` | newest patch of that minor line |
+| `<major>-<base>` | `1-trixie` | newest version of that major line |
+| `<base>` | `trixie` | newest version built here |
+| `latest-<base>` | `latest-trixie` | same as `<base>`, kept as an alias |
+| `sha-<sha>-<rust>-<base>` | `sha-40da647-1.91.0-trixie` | a single commit of this repository |
 
 `trixie` is the default base and also gets the shapes without a base
 name — `1.91.0`, `1.91`, `1`, `latest` — matching where upstream puts
 them.
 
 Append [`-mold`](#mold) or [`-wild`](#wild) to any shape above to get that
-variant — `1.91.0-bookworm-mold` and `1.91.0-bookworm-wild` both exist, as do
-`bookworm-mold` / `bookworm-wild` and, for the default base, `latest-mold` /
+variant — `1.91.0-trixie-mold` and `1.91.0-trixie-wild` both exist, as do
+`trixie-mold` / `trixie-wild` and, for the default base, `latest-mold` /
 `latest-wild`.
 
 `<base>` is one of `slim`, `trixie`, `slim-trixie`, `bookworm`, `slim-bookworm`,
@@ -73,7 +73,7 @@ Every tag is a multi-arch index covering:
 
 `linux/amd64`, `linux/386`, `linux/arm64`, `linux/arm/v7`
 
-`docker pull` picks the right one, so `docker pull …:latest-bookworm` on an Apple
+`docker pull` picks the right one, so `docker pull …:latest` on an Apple
 Silicon Mac gets the arm64 image.
 
 `-wild` tags cover `linux/amd64` and `linux/arm64` only — upstream does not build
@@ -93,7 +93,7 @@ BuildKit attestations are unsigned metadata sitting beside the image, so anyone
 with push access could replace them.
 
 ```sh
-gh attestation verify oci://ghcr.io/sksat/cargo-chef-docker:latest-bookworm \
+gh attestation verify oci://ghcr.io/sksat/cargo-chef-docker:latest \
   --repo sksat/cargo-chef-docker
 ```
 
@@ -151,10 +151,10 @@ file:
 docker buildx bake
 
 # one target
-docker buildx bake 1-91-0-bookworm
+docker buildx bake 1-91-0-trixie
 
 # load a single platform into the local daemon
-docker buildx bake 1-91-0-bookworm \
+docker buildx bake 1-91-0-trixie \
   --set '*.platform=linux/arm64' \
   --set '*.tags=cargo-chef:test' --load
 ```
