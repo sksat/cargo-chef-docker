@@ -50,7 +50,7 @@ COPY --from=build ${CARGO_BIN}/cargo-chef ${CARGO_BIN}/cargo-chef
 FROM build AS wild-dist
 
 # depName=wild-linker/wild datasource=github-releases
-ARG WILD_VERSION="0.10.0"
+ARG WILD_VERSION="0.11.0"
 # ダウンロードした tarball を検証する。upstream は checksum ファイルも署名も
 # 出しておらず、release API の digest だけがある。ここに固定しておけば、
 # 同名アセットが差し替えられた場合に気づける。
